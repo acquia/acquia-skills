@@ -73,18 +73,6 @@ acli app:unlink
 
 ---
 
-## Tail Application Logs
-
-Stream live logs from a Cloud environment:
-
-```bash
-acli app:log:tail
-```
-
-Prompts for the application and environment, then tails all available log streams in real time. Useful for monitoring deployments or debugging live issues.
-
----
-
 ## Check Branch and Tag Deployment Status
 
 ```bash

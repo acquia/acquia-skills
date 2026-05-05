@@ -73,13 +73,21 @@ If there are uncommitted changes, ask the user: **"Do you want to commit these c
 
 ### Step 4 — Push code to Acquia Cloud
 
-Push the committed code to the selected environment:
+Push the committed branch to the Acquia Cloud git remote:
+
+```bash
+git push acquia <branch-name>
+```
+
+If you are working inside a Cloud IDE or Lando environment, you can alternatively use:
 
 ```bash
 acli push:code
 ```
 
-Follow **[Pull & Push](../../acli/pull-push/SKILL.md)** for full options (selecting environments, handling conflicts).
+> **Note:** `acli push:code` only works inside a Cloud IDE or Lando. For all other environments, use `git push acquia <branch-name>` directly.
+
+Follow **[Pull & Push](../../acli/pull-push/SKILL.md)** for full options including artifact builds.
 
 ---
 
@@ -88,7 +96,7 @@ Follow **[Pull & Push](../../acli/pull-push/SKILL.md)** for full options (select
 After pushing, switch the environment to the updated branch using the environment ID from Step 2:
 
 ```bash
-acli api:environments:switchCode <environment-id> --branch=<branch-name>
+acli api:environments:code-switch <environment-id> <branch-name>
 ```
 
 Follow **[Environment Management](../../acli/environment-management/SKILL.md)** for deploy options.

@@ -474,6 +474,8 @@ pipelines start --application-id=<app-id> --tail
 
 ## GitHub Integration
 
+> **Note:** The Pipelines CLI supports GitHub only. Bitbucket is not supported by the command-line client.
+
 ### Connect a GitHub repository
 
 ```bash
