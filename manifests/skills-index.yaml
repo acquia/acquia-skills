@@ -59,6 +59,51 @@ skills:
     audience: user
     path: skills/acli/troubleshooting/SKILL.md
 
+  - id: acli-codebase-management
+    product: acli
+    audience: user
+    path: skills/acli/codebase-management/SKILL.md
+
+  - id: acli-org-team-management
+    product: acli
+    audience: user
+    path: skills/acli/org-team-management/SKILL.md
+
+  - id: acli-subscriptions
+    product: acli
+    audience: user
+    path: skills/acli/subscriptions/SKILL.md
+
+  - id: acli-private-networks
+    product: acli
+    audience: user
+    path: skills/acli/private-networks/SKILL.md
+
+  - id: acli-identity-providers
+    product: acli
+    audience: user
+    path: skills/acli/identity-providers/SKILL.md
+
+  - id: acli-acsf-site-management
+    product: acli
+    audience: user
+    path: skills/acli/acsf-site-management/SKILL.md
+
+  - id: acli-acsf-user-role-management
+    product: acli
+    audience: user
+    path: skills/acli/acsf-user-role-management/SKILL.md
+
+  - id: acli-acsf-infrastructure
+    product: acli
+    audience: user
+    path: skills/acli/acsf-infrastructure/SKILL.md
+
+  - id: acli-acsf-content
+    product: acli
+    audience: user
+    path: skills/acli/acsf-content/SKILL.md
+
   # pipelines-cli skills
   - id: pipelines-cli-getting-started
     product: pipelines-cli

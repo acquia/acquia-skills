@@ -32,3 +32,30 @@ skills:
 
   - id: acli-troubleshooting
     path: skills/acli/troubleshooting/SKILL.md
+
+  - id: acli-codebase-management
+    path: skills/acli/codebase-management/SKILL.md
+
+  - id: acli-org-team-management
+    path: skills/acli/org-team-management/SKILL.md
+
+  - id: acli-subscriptions
+    path: skills/acli/subscriptions/SKILL.md
+
+  - id: acli-private-networks
+    path: skills/acli/private-networks/SKILL.md
+
+  - id: acli-identity-providers
+    path: skills/acli/identity-providers/SKILL.md
+
+  - id: acli-acsf-site-management
+    path: skills/acli/acsf-site-management/SKILL.md
+
+  - id: acli-acsf-user-role-management
+    path: skills/acli/acsf-user-role-management/SKILL.md
+
+  - id: acli-acsf-infrastructure
+    path: skills/acli/acsf-infrastructure/SKILL.md
+
+  - id: acli-acsf-content
+    path: skills/acli/acsf-content/SKILL.md
