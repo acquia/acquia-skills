@@ -71,6 +71,12 @@ acli api:environments:code-switch $ENV_ID $BRANCH
 acli remote:drush status
 ```
 
+> **MEO (V3) subscriptions:** replace the `api:environments:code-switch` line with
+> `acli api:v3:environments:create-deployment $ENV_ID true $BRANCH` (see
+> [MEO Deployments](../meo-deployments/SKILL.md)). Likewise, `acli remote:drush cr`
+> has an API-driven equivalent, `acli api:v3:environments:clear-caches <environmentId> <domains>`
+> (see [MEO Environments](../meo-environments/SKILL.md)).
+
 Run via cron:
 
 ```bash

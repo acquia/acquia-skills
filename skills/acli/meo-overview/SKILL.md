@@ -75,8 +75,8 @@ No separate login is needed. The `api:v3:*` commands automatically use the V3 AP
 For scripts and CI/CD:
 
 ```bash
-export ACLIA_KEY="your-api-key"
-export ACLIA_SECRET="your-api-secret"
+export ACQUIA_KEY="your-api-key"
+export ACQUIA_SECRET="your-api-secret"
 acli api:v3:sites:list
 ```
 

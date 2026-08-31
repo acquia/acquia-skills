@@ -283,6 +283,8 @@ Host ide-*.ides.acquia.com
    ```bash
    acli api:applications:list
    ```
+   > **MEO (V3) subscriptions:** `api:applications:list` returns nothing — list your resources with
+   > `acli api:v3:sites:list` or `acli api:v3:codebases:list` instead (see [MEO Overview](../meo-overview/SKILL.md)).
 
 2. **Use the correct application:**
    ```bash
@@ -408,7 +410,7 @@ acli --version
 # Your account info
 acli auth:me
 
-# Your applications
+# Your applications (ACE / V2). On MEO (V3), use: acli api:v3:sites:list
 acli api:applications:list
 
 # Your IDEs
