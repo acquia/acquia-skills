@@ -31,6 +31,17 @@ Two separate CLIs exist for Acquia Cloud operations:
 
 Use **pipelines-cli** for anything related to pipeline jobs. Use **acli** for everything else.
 
+### ACE vs MEO
+
+`acli` serves two distinct hosting products with separate command prefixes:
+
+| Product | Command prefix | API |
+|---|---|---|
+| **ACE** (Acquia Cloud Enterprise) — classic single-site hosting | `acli api:*` | V2 |
+| **MEO** (Multi-site Enterprise Operations) — multi-site hosting | `acli api:v3:*` | V3 |
+
+If you're working on a MEO subscription, see **[MEO Overview](../meo-overview/SKILL.md)** for the full command set.
+
 ---
 
 ## Installation

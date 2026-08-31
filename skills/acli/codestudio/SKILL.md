@@ -5,6 +5,7 @@ license: Proprietary
 compatibility: acli>=2.x
 metadata:
     category: ci-cd
+    platform: "ACE (Acquia Cloud Enterprise)"
     author: Acquia
     version: "1.0.0"
     tags: "acli, acquia-cloud, code-studio, gitlab, ci-cd"
@@ -12,6 +13,8 @@ metadata:
 ---
 
 # Code Studio with Acquia CLI
+
+> **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
 
 Use when:
 - Setting up a new Code Studio project for a Cloud application

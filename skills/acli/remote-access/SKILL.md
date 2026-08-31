@@ -5,6 +5,7 @@ license: Proprietary
 compatibility: acli>=2.x
 metadata:
     category: authentication
+    platform: "ACE (Acquia Cloud Enterprise)"
     author: Acquia
     version: "1.0.0"
     tags: "acli, acquia-cloud, ssh, drush, logs, remote"
@@ -12,6 +13,9 @@ metadata:
 ---
 
 # Remote Access with Acquia CLI
+
+> **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
+> For MEO (Multi-site Enterprise Operations), see [MEO Overview](../meo-overview/SKILL.md).
 
 Use when:
 - Opening an SSH shell on a Cloud environment

@@ -112,13 +112,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install acli
         run: |
           curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
             -o /usr/local/bin/acli
           chmod +x /usr/local/bin/acli
-      
+
       - name: Authenticate
         env:
           ACQUIA_KEY: ${{ secrets.ACQUIA_KEY }}
@@ -133,7 +133,7 @@ jobs:
             }
           }
           EOF
-      
+
       - name: Deploy to production
         run: |
           acli api:environments:code-switch ${{ vars.ACQUIA_PROD_ENV_ID }} main
