@@ -56,3 +56,6 @@ skills:
 
   - id: acli-meo-identity-access
     path: skills/acli/meo-identity-access/SKILL.md
+
+  - id: acli-meo-translation-layer
+    path: skills/acli/meo-translation-layer/SKILL.md

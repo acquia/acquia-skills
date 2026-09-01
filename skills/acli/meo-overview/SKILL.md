@@ -152,6 +152,7 @@ acli api:v3:environments:list-site-instances <environmentId>
 - **[MEO Deployments](../meo-deployments/SKILL.md)** — Monitor and control deployments
 - **[MEO CDN & Security](../meo-cdn-security/SKILL.md)** — CDN, IP rules, custom rules, rate limiting
 - **[MEO Identity & Access](../meo-identity-access/SKILL.md)** — SSO domains, identity providers
+- **[MEO Translation Layer](../meo-translation-layer/SKILL.md)** — ACE env variables, crons, mod-proxy, StackMetrics via the v3 gateway
 
 ## ACE Skills (V2 only)
 

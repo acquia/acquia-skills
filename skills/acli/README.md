@@ -31,3 +31,4 @@ Command-line skills for [Acquia CLI (acli)](https://github.com/acquia/cli).
 | [meo-deployments](meo-deployments/SKILL.md) | Monitor, stop, and terminate MEO deployments |
 | [meo-cdn-security](meo-cdn-security/SKILL.md) | CDN domains, security rulesets, IP rules, custom rules, rate limiting, failover groups |
 | [meo-identity-access](meo-identity-access/SKILL.md) | SSO domains, identity providers, and SSO policies for federated authentication |
+| [meo-translation-layer](meo-translation-layer/SKILL.md) | ACE environment variables, crons, mod-proxy, StackMetrics, and runtimes via the v3 gateway |

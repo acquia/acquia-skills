@@ -36,6 +36,11 @@ Ask the user: **"Do you need to apply dependency updates first, or are updates a
 
 Always run these before asking the user where to deploy. This ensures the correct application and environment IDs are used.
 
+> **This playbook uses ACE (V2) commands.** On a **MEO (V3)** subscription, substitute the V3 equivalents throughout (see [MEO Overview](../../acli/meo-overview/SKILL.md)):
+> - `api:applications:list` → `acli api:v3:codebases:list` / `acli api:v3:sites:list`
+> - `api:environments:list <app-uuid>` → `acli api:v3:codebases:list-environments <codebaseId>`
+> - `api:environments:switchCode` (Step 5) → `acli api:v3:environments:create-deployment <environmentId> true <code_reference>`
+
 ```bash
 # List available applications and note the UUID
 acli api:applications:list
