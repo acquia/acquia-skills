@@ -5,6 +5,7 @@ license: Proprietary
 compatibility: acli>=2.x
 metadata:
     category: ide
+    platform: "ACE (Acquia Cloud Enterprise)"
     author: Acquia
     version: "1.0.0"
     tags: "acli, acquia-cloud, ide, cloud-ide, xdebug"
@@ -12,6 +13,8 @@ metadata:
 ---
 
 # Managing Cloud IDEs
+
+> **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
 
 Use when:
 - Creating, opening, or sharing a Cloud IDE

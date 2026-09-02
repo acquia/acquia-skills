@@ -293,6 +293,9 @@ Then:
     acli api:environments:code-switch <env-id> main
 ```
 
+> **MEO (V3) subscriptions:** use `acli api:v3:environments:create-deployment <environmentId> true refs/heads/main`
+> instead of `api:environments:code-switch` (see [MEO Deployments](../meo-deployments/SKILL.md)).
+
 ---
 
 ## Related Topics

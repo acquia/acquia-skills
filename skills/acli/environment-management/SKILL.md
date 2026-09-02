@@ -5,6 +5,7 @@ license: Proprietary
 compatibility: acli>=2.x
 metadata:
     category: deployment
+    platform: "ACE (Acquia Cloud Enterprise)"
     author: Acquia
     version: "1.0.0"
     tags: "acli, acquia-cloud, environments, cde, deployment"
@@ -12,6 +13,9 @@ metadata:
 ---
 
 # Environment Management with Acquia CLI
+
+> **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
+> For MEO (Multi-site Enterprise Operations), see [MEO Environments](../meo-environments/SKILL.md).
 
 Use when:
 - Creating or deleting Continuous Delivery Environments (CDEs)

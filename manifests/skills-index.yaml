@@ -59,6 +59,46 @@ skills:
     audience: user
     path: skills/acli/troubleshooting/SKILL.md
 
+  - id: acli-meo-overview
+    product: acli
+    audience: user
+    path: skills/acli/meo-overview/SKILL.md
+
+  - id: acli-meo-sites
+    product: acli
+    audience: user
+    path: skills/acli/meo-sites/SKILL.md
+
+  - id: acli-meo-codebases
+    product: acli
+    audience: user
+    path: skills/acli/meo-codebases/SKILL.md
+
+  - id: acli-meo-environments
+    product: acli
+    audience: user
+    path: skills/acli/meo-environments/SKILL.md
+
+  - id: acli-meo-site-instances
+    product: acli
+    audience: user
+    path: skills/acli/meo-site-instances/SKILL.md
+
+  - id: acli-meo-deployments
+    product: acli
+    audience: user
+    path: skills/acli/meo-deployments/SKILL.md
+
+  - id: acli-meo-cdn-security
+    product: acli
+    audience: user
+    path: skills/acli/meo-cdn-security/SKILL.md
+
+  - id: acli-meo-identity-access
+    product: acli
+    audience: user
+    path: skills/acli/meo-identity-access/SKILL.md
+
   # pipelines-cli skills
   - id: pipelines-cli-getting-started
     product: pipelines-cli

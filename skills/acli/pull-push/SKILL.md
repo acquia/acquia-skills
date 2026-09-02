@@ -5,6 +5,7 @@ license: Proprietary
 compatibility: acli>=2.x
 metadata:
     category: deployment
+    platform: "ACE (Acquia Cloud Enterprise)"
     author: Acquia
     version: "1.0.0"
     tags: "acli, acquia-cloud, sync, deployment, database, files"
@@ -12,6 +13,9 @@ metadata:
 ---
 
 # Pull & Push with Acquia CLI
+
+> **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
+> For MEO (Multi-site Enterprise Operations), see [MEO Site Instances](../meo-site-instances/SKILL.md) for database and file operations.
 
 Use when:
 - Syncing your local environment with a Cloud Platform environment

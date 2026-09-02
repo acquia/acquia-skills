@@ -71,6 +71,12 @@ acli api:environments:code-switch $ENV_ID $BRANCH
 acli remote:drush status
 ```
 
+> **MEO (V3) subscriptions:** replace the `api:environments:code-switch` line with
+> `acli api:v3:environments:create-deployment $ENV_ID true $BRANCH` (see
+> [MEO Deployments](../meo-deployments/SKILL.md)). Likewise, `acli remote:drush cr`
+> has an API-driven equivalent, `acli api:v3:environments:clear-caches <environmentId> <domains>`
+> (see [MEO Environments](../meo-environments/SKILL.md)).
+
 Run via cron:
 
 ```bash
@@ -112,13 +118,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Install acli
         run: |
           curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
             -o /usr/local/bin/acli
           chmod +x /usr/local/bin/acli
-      
+
       - name: Authenticate
         env:
           ACQUIA_KEY: ${{ secrets.ACQUIA_KEY }}
@@ -133,7 +139,7 @@ jobs:
             }
           }
           EOF
-      
+
       - name: Deploy to production
         run: |
           acli api:environments:code-switch ${{ vars.ACQUIA_PROD_ENV_ID }} main

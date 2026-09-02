@@ -32,3 +32,27 @@ skills:
 
   - id: acli-troubleshooting
     path: skills/acli/troubleshooting/SKILL.md
+
+  - id: acli-meo-overview
+    path: skills/acli/meo-overview/SKILL.md
+
+  - id: acli-meo-sites
+    path: skills/acli/meo-sites/SKILL.md
+
+  - id: acli-meo-codebases
+    path: skills/acli/meo-codebases/SKILL.md
+
+  - id: acli-meo-environments
+    path: skills/acli/meo-environments/SKILL.md
+
+  - id: acli-meo-site-instances
+    path: skills/acli/meo-site-instances/SKILL.md
+
+  - id: acli-meo-deployments
+    path: skills/acli/meo-deployments/SKILL.md
+
+  - id: acli-meo-cdn-security
+    path: skills/acli/meo-cdn-security/SKILL.md
+
+  - id: acli-meo-identity-access
+    path: skills/acli/meo-identity-access/SKILL.md
