@@ -6,18 +6,33 @@ Agent Skills for [Acquia CLI](https://docs.acquia.com/acquia-cli/), [Pipelines C
 
 ### `acli` — Acquia CLI
 
+#### ACE (Acquia Cloud Enterprise) — `acli api:*`
+
 | Skill | Description |
 |-------|-------------|
 | `getting-started` | Install and authenticate acli for the first time |
-| `application-management` | List applications, link repos, check VCS status |
-| `environment-management` | List, create, delete, and mirror Cloud environments |
-| `ide-management` | Create, list, open, and manage Cloud IDEs |
-| `pull-push` | Sync code, database, and files between local and Cloud |
-| `remote-access` | SSH into environments, run Drush remotely, tail logs |
+| `application-management` | List applications, link repos, check VCS status (ACE only) |
+| `environment-management` | List, create, delete, and mirror Cloud environments (ACE only) |
+| `ide-management` | Create, list, open, and manage Cloud IDEs (ACE only) |
+| `pull-push` | Sync code, database, and files between local and Cloud (ACE only) |
+| `remote-access` | SSH into environments, run Drush remotely, tail logs (ACE only) |
 | `ssh-key-management` | Add, list, and delete SSH keys |
-| `codestudio` | Set up Code Studio (GitLab CI/CD) projects |
+| `codestudio` | Set up Code Studio (GitLab CI/CD) projects (ACE only) |
 | `scripting` | Run acli non-interactively in scripts and CI/CD |
 | `troubleshooting` | Debug acli errors and authentication failures |
+
+#### MEO (Multi-site Enterprise Operations) — `acli api:v3:*`
+
+| Skill | Description |
+|-------|-------------|
+| `meo-overview` | ACE vs MEO distinction, resource model, authentication, dynamic command discovery |
+| `meo-sites` | List, create, update, duplicate, recover, and delete MEO sites |
+| `meo-codebases` | Manage codebases, git references, and domain patterns |
+| `meo-environments` | Environment details, protection mode, cache clearing, site instance creation, deployments |
+| `meo-site-instances` | Site instance lifecycle, domains, databases, backups, wipe |
+| `meo-deployments` | Monitor, stop, and terminate MEO deployments |
+| `meo-cdn-security` | CDN domains, security rulesets, IP rules, custom rules, rate limiting, failover groups |
+| `meo-identity-access` | SSO domains, identity providers, and SSO policies for federated authentication |
 
 ### `pipelines-cli` — Acquia Pipelines CLI
 
