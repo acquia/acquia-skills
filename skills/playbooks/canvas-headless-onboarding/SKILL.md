@@ -26,7 +26,8 @@ Use when:
 > acli api:applications:list          # ACE: this is the entry point
 > acli api:v3:sites:list              # MEO: returns results
 > ```
-> If it is **MEO**, stop before Step 4 and read **[MEO Overview](../../acli/meo-overview/SKILL.md)**. Steps 0–3 and 5–9 still apply, but two things change materially: deployment goes through `acli api:v3:environments:create-deployment` rather than `switchCode` (see **[MEO Deployments](../../acli/meo-deployments/SKILL.md)**), and MEO runs **many Drupal sites per environment** as site instances — so `AH_SITE_ENVIRONMENT` alone cannot key the frontend URL the way Step 3 assumes. A MEO rollout needs the split keyed per site instance, which this playbook does not cover. Raise that with the customer rather than applying Step 3 as written.
+> acli generates its API commands dynamically, so the whole `api:v3:*` namespace is absent on an ACE-only account — `acli list` showing no `v3` commands means ACE, not an outdated acli.
+> If it is **MEO**, stop before Step 4 and read **[MEO Overview](../../acli/meo-overview/SKILL.md)**. Steps 0–3 and 5–9 still apply, but two things change materially: deployment goes through `acli api:v3:environments:create-deployment` rather than `api:environments:code-switch` (see **[MEO Deployments](../../acli/meo-deployments/SKILL.md)**), and MEO runs **many Drupal sites per environment** as site instances — so `AH_SITE_ENVIRONMENT` alone cannot key the frontend URL the way Step 3 assumes. A MEO rollout needs the split keyed per site instance, which this playbook does not cover. Raise that with the customer rather than applying Step 3 as written.
 
 > **`canvas_headless` is experimental.** Its `.info.yml` declares `lifecycle: experimental` and `hidden: true` — it never appears on `/admin/modules`, which is why Drush is the only way to enable it. Its APIs, hooks, and configuration may change without a deprecation path. Say this out loud to the customer before starting, and confirm they accept it on a production application.
 
@@ -122,7 +123,7 @@ drush cache:rebuild
 Verify the modules are actually enabled (`canvas_headless` is hidden, so the Extend page is not a reliable check):
 
 ```bash
-drush pm:list --status=enabled --filter=canvas
+drush pm:list --status=enabled --filter=Canvas
 drush config:status
 ```
 
@@ -287,7 +288,7 @@ drush config:export --yes
 drush config:get canvas_headless.settings
 
 # Preview what a deploy would change before pushing
-drush config:import --diff --preview=diff
+drush config:import --diff
 ```
 
 At this point the configuration is correct locally but is not live anywhere. **Step 4** releases it.
@@ -370,9 +371,15 @@ if (isset($_ENV['AH_SITE_GROUP'], $_ENV['AH_SITE_ENVIRONMENT'])) {
 }
 ```
 
+> **If Simple OAuth warns about private key file permissions**, that is the upstream OAuth library's permission check firing on a containerized environment where the key is owned by a different user than the web daemon. Simple OAuth's own README covers it — it is a false positive in that setup, and the escape hatch is a setting, not a `chmod`:
+> ```php
+> $settings['simple_oauth.key_permissions_check'] = FALSE;
+> ```
+> Only reach for this once the warning is confirmed to be the ownership false positive. It silences a real check, so do not add it pre-emptively.
+
 > **Confirm the mount path before committing this.** Cloud Classic and Cloud Next expose different writable mounts, so do not take `/mnt/gfs/...` on faith. SSH into the target environment and verify a writable, non-web-accessible directory exists:
 > ```bash
-> acli ssh <environment-id>
+> acli ssh <app>.<env>
 > echo "$AH_SITE_GROUP.$AH_SITE_ENVIRONMENT"
 > ls -ld /mnt/gfs/$AH_SITE_GROUP.$AH_SITE_ENVIRONMENT/nobackup 2>/dev/null || echo "not this path"
 > ```
@@ -397,20 +404,22 @@ If the customer builds through Acquia Pipelines or Code Studio, trigger the buil
 
 > ACE commands. On MEO, substitute `acli api:v3:environments:create-deployment` and see the scope note at the top of this skill.
 
-Get the environment IDs:
+Get the application UUID and its environments:
 
 ```bash
 acli api:applications:list
-acli api:environments:list <app-uuid>
+acli api:applications:environment-list <app-uuid>
 ```
+
+> **IDs vs aliases — these are not interchangeable.** `api:*` commands accept a compound environment ID (`146125-04f18e5e-…`), an environment UUID, or an alias. But `acli ssh` (an alias for `remote:ssh`) accepts **only** the `app.env` alias form — passing an environment ID to it fails. Use `<app>.dev`, `<app>.test`, `<app>.prod`, where `<app>` is the application's hosting name rather than its display label.
 
 Then for **each** environment in order — dev, then test, then prod — run the same three phases. Do not move to the next environment until the current one verifies.
 
 **Phase 1: switch code and run the deploy.**
 
 ```bash
-acli api:environments:switchCode <environment-id> --branch=<branch-name>
-acli ssh <environment-id>
+acli api:environments:code-switch <app>.<env> <branch-name>
+acli ssh <app>.<env>
 drush deploy
 ```
 
@@ -427,7 +436,7 @@ drush deploy
 **Phase 2: generate that environment's keypair.** This cannot be deployed; it has to happen once per environment, on the environment:
 
 ```bash
-# Still inside `acli ssh <environment-id>`, using the path confirmed in Step 4b
+# Still inside `acli ssh <app>.<env>`, using the path confirmed in Step 4b
 mkdir -p /mnt/gfs/$AH_SITE_GROUP.$AH_SITE_ENVIRONMENT/nobackup/oauth-keys
 chmod 700 /mnt/gfs/$AH_SITE_GROUP.$AH_SITE_ENVIRONMENT/nobackup/oauth-keys
 drush simple-oauth:generate-keys /mnt/gfs/$AH_SITE_GROUP.$AH_SITE_ENVIRONMENT/nobackup/oauth-keys
@@ -437,7 +446,7 @@ drush cache:rebuild
 **Phase 3: verify this environment before touching the next.**
 
 ```bash
-drush pm:list --status=enabled --filter=canvas
+drush pm:list --status=enabled --filter=Canvas
 drush config:get canvas_headless.settings
 drush core:requirements --severity=1
 ```
@@ -698,11 +707,11 @@ Ask the customer: **"Do you want me to run a full verification pass now?"** Run 
 
 ### 9a — Backend, on each environment
 
-Run these inside `acli ssh <environment-id>` for **every** environment, and record which environment each result came from:
+Run these inside `acli ssh <app>.<env>` for **every** environment, and record which environment each result came from:
 
 ```bash
 # 1. Modules enabled
-drush pm:list --status=enabled --filter=canvas
+drush pm:list --status=enabled --filter=Canvas
 
 # 2. This environment's own frontend URL — not the base, not another tier's
 drush config:get canvas_headless.settings
@@ -741,7 +750,8 @@ drush config:status
 The single most valuable verification, because it is the one thing per-environment config is supposed to guarantee and the one thing a broken split silently breaks. Collect the frontend URL from every environment and compare:
 
 ```bash
-for env in <dev-env-id> <test-env-id> <prod-env-id>; do
+# `acli ssh` takes an app.env ALIAS, not an environment ID.
+for env in <app>.dev <app>.test <app>.prod; do
   echo "=== $env ==="
   acli ssh "$env" -- drush config:get canvas_headless.settings frontends --format=json
 done
@@ -752,7 +762,7 @@ done
 Also confirm the keys are genuinely distinct, not copies:
 
 ```bash
-for env in <dev-env-id> <test-env-id> <prod-env-id>; do
+for env in <app>.dev <app>.test <app>.prod; do
   echo "=== $env ==="
   acli ssh "$env" -- sh -c 'md5sum "$(drush config:get simple_oauth.settings public_key --format=string)"'
 done
