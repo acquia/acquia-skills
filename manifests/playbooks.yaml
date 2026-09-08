@@ -5,3 +5,6 @@ audience: user
 skills:
   - id: playbooks-drupal-update-deploy
     path: skills/playbooks/drupal-update-deploy/SKILL.md
+
+  - id: playbooks-canvas-headless-onboarding
+    path: skills/playbooks/canvas-headless-onboarding/SKILL.md

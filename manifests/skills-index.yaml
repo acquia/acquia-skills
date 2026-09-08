@@ -131,3 +131,8 @@ skills:
     product: playbooks
     audience: user
     path: skills/playbooks/drupal-update-deploy/SKILL.md
+
+  - id: playbooks-canvas-headless-onboarding
+    product: playbooks
+    audience: user
+    path: skills/playbooks/canvas-headless-onboarding/SKILL.md

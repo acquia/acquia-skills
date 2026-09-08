@@ -54,6 +54,7 @@ Agent Skills for [Acquia CLI](https://docs.acquia.com/acquia-cli/), [Pipelines C
 | Skill | Description |
 |-------|-------------|
 | `drupal-update-deploy` | Update Drupal dependencies, push code, deploy to environment, and optionally trigger a pipeline |
+| `canvas-headless-onboarding` | Configure Drupal Canvas headless end to end: enable `canvas_headless`, scaffold or wire a decoupled frontend, split the frontend URL per Cloud environment, and deploy to Front End Hosting |
 
 ## Installation
 
