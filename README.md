@@ -33,6 +33,7 @@ Agent Skills for [Acquia CLI](https://docs.acquia.com/acquia-cli/), [Pipelines C
 | `meo-deployments` | Monitor, stop, and terminate MEO deployments |
 | `meo-cdn-security` | CDN domains, security rulesets, IP rules, custom rules, rate limiting, failover groups |
 | `meo-identity-access` | SSO domains, identity providers, and SSO policies for federated authentication |
+| `trial-management` | Create a trial site, check provisioning status, get the live site/admin URL, retry a failed trial |
 
 ### `pipelines-cli` — Acquia Pipelines CLI
 
