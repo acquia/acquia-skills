@@ -45,10 +45,12 @@ Output shows application names and UUIDs. Ask the user: **"Which application do 
 
 ```bash
 # List environments for the selected application
-acli api:environments:list <app-uuid>
+acli api:applications:environment-list <app-uuid>
 ```
 
 Output shows environment labels (dev, stage, prod, CDEs), IDs, and the currently deployed branch. Ask the user: **"Which environment do you want to deploy to?"**
+
+Note the ID formats these commands accept: `api:*` commands take a compound environment ID (the environment's internal database ID joined to the application UUID), a UUID, or an `app-name.env` alias. `acli ssh` (used in Step 7) accepts **only** the alias form, so record both the environment ID and the alias.
 
 ---
 
@@ -88,8 +90,10 @@ Follow **[Pull & Push](../../acli/pull-push/SKILL.md)** for full options (select
 After pushing, switch the environment to the updated branch using the environment ID from Step 2:
 
 ```bash
-acli api:environments:switchCode <environment-id> --branch=<branch-name>
+acli api:environments:code-switch <environmentId> <branch>
 ```
+
+The branch is a **positional** argument — there is no `--branch` option.
 
 Follow **[Environment Management](../../acli/environment-management/SKILL.md)** for deploy options.
 
@@ -114,8 +118,8 @@ pipelines start --application-id=<app-id> --vcs-path=<branch> --tail
 After code is live on the environment (and after any pipeline completes), run database updates and rebuild the cache via Drush:
 
 ```bash
-# SSH into the environment
-acli ssh <environment-id>
+# SSH into the environment (alias form only — e.g. myapp.dev)
+acli ssh <app>.<env>
 
 # Apply pending database updates
 drush updb --yes
@@ -123,6 +127,8 @@ drush updb --yes
 # Rebuild caches
 drush cr
 ```
+
+`acli ssh` is an alias for `remote:ssh`, whose argument is an `app-name.env` alias — passing an environment ID here fails. Follow **[Remote Access](../../acli/remote-access/SKILL.md)** for alias lookup (`acli remote:aliases:list`).
 
 > **If using pipelines:** Drush commands may already be included in your pipeline definition. Ask the user: **"Does your pipeline run `drush updb` and `drush cr`?"**
 > - If yes → skip this step.
@@ -143,7 +149,7 @@ Expected output includes `Drupal bootstrap: Successful` and a Drupal version. If
 After the pipeline completes (or if skipping pipelines), confirm the environment is running the expected code:
 
 ```bash
-acli api:environments:list <app-uuid>
+acli api:applications:environment-list <app-uuid>
 ```
 
 Check the `vcs` field of the target environment to confirm the branch matches.
