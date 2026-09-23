@@ -54,6 +54,7 @@ Agent Skills for [Acquia CLI](https://docs.acquia.com/acquia-cli/), [Pipelines C
 | Skill | Description |
 |-------|-------------|
 | `drupal-update-deploy` | Update Drupal dependencies, push code, deploy to environment, and optionally trigger a pipeline |
+| `setup-external-ci-cd` | Set up external CI/CD (GitHub Actions / GitLab) to build & deploy Drupal to an Acquia application (ACE) |
 
 ## Installation
 

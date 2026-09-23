@@ -131,3 +131,8 @@ skills:
     product: playbooks
     audience: user
     path: skills/playbooks/drupal-update-deploy/SKILL.md
+
+  - id: playbooks-setup-external-ci-cd
+    product: playbooks
+    audience: user
+    path: skills/playbooks/setup-external-ci-cd/SKILL.md
