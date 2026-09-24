@@ -5,15 +5,20 @@ which is triggered by a repository_dispatch from acquia/cli on each ACLI release
 
 For each mapped acli skill this script:
   1. Filters `acli list --format=json` output down to the skill's namespaces.
-  2. Skips the skill if that command surface is unchanged since the last run
-     (unless --force).
+  2. Skips the skill if the hash of that command surface matches the last-synced
+     hash (no command change -> no Claude call, no churn), unless --force.
   3. Asks Claude to return a corrected SKILL.md reflecting the current commands.
   4. Validates the result (reusing validate_manifests.validate_skill_file) and
      writes it only if it changed and still passes validation.
 
-State lives in two files under .github/:
-  - skills-sync-state.json     : last-synced acli_version / spec_version / last_run
-  - skills-sync-commands.json  : per-skill snapshot of the filtered command surface
+The whole run is first gated by a version check: if acli_version and spec_version
+match the last-synced state (and --force is not set) the script exits early
+without any API calls.
+
+State lives in one small file under .github/:
+  - skills-sync-state.json : last-synced acli_version / spec_version / last_run,
+    plus skill_hashes (a short SHA-256 per skill of its command surface, used to
+    skip skills whose commands did not change).
 
 The Anthropic API key is read from the ANTHROPIC_API_KEY environment variable only
 (never a CLI arg, never logged). See the receiver workflow for how it is injected
@@ -21,6 +26,7 @@ from the repo secret.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -32,9 +38,6 @@ from validate_manifests import validate_skill_file  # noqa: E402
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _SKILLS_DIR = os.path.join(_REPO_ROOT, "skills", "acli")
 _STATE_FILE = os.path.join(_REPO_ROOT, ".github", "skills-sync-state.json")
-_COMMANDS_SNAPSHOT_FILE = os.path.join(
-    _REPO_ROOT, ".github", "skills-sync-commands.json"
-)
 
 MODEL = "claude-sonnet-5"
 FALLBACK_MODEL = "claude-sonnet-4-6"
@@ -118,8 +121,8 @@ def load_commands(path):
     """Load `acli list --format=json` output and normalize to a name->command map.
 
     Symfony's JSON descriptor emits {"commands": [{"name": ..., "usage": [...],
-    "description": ...}, ...]}. We keep only fields that describe the command
-    surface so the change-detection snapshot is stable across unrelated churn.
+    "description": ...}, ...]}. We keep only the fields that describe the command
+    surface and feed them to Claude.
 
     `acli` may prepend a human-readable notice (e.g. an update-available banner)
     to stdout before the JSON, so we skip to the first '{' rather than assuming
@@ -166,9 +169,10 @@ def select_commands(commands, selector):
     return sorted(selected, key=lambda c: c["name"])
 
 
-def command_surface_key(selected):
-    """A stable, hashable representation of a skill's command surface."""
-    return json.dumps(selected, sort_keys=True)
+def command_surface_hash(selected):
+    """Short, stable SHA-256 of a skill's command surface for change detection."""
+    payload = json.dumps(selected, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
 
 
 SYSTEM_PROMPT = """\
@@ -288,15 +292,16 @@ def make_client():
     return Anthropic()
 
 
-def sync_skill(client, skill, selector, commands, snapshot, force):
-    """Process one skill. Returns (status, new_surface_key).
+def sync_skill(client, skill, selector, commands, prior_hashes, force):
+    """Process one skill. Returns (status, command_hash).
 
-    status is one of: "skipped-unchanged", "unchanged", "updated", "error".
-    new_surface_key is the current command-surface key to store in the snapshot
-    (None when the skill is not command-driven).
+    status is one of: "skipped" (not command-driven), "skipped-unchanged"
+    (commands identical to last sync), "unchanged" (Claude proposed no change),
+    "updated", "error". command_hash is the current command-surface hash to store
+    in state (None when the skill is not command-driven).
     """
     if selector is None:
-        return "skipped-unchanged", None
+        return "skipped", None
 
     skill_path = os.path.join(_SKILLS_DIR, skill, "SKILL.md")
     if not os.path.exists(skill_path):
@@ -304,18 +309,20 @@ def sync_skill(client, skill, selector, commands, snapshot, force):
         return "error", None
 
     selected = select_commands(commands, selector)
-    surface_key = command_surface_key(selected)
-
-    if not force and snapshot.get(skill) == surface_key:
-        print(f"  {skill}: command surface unchanged, skipping Claude call")
-        return "skipped-unchanged", surface_key
-
     if not selected:
         print(
             f"WARN: {skill}: no matching commands in acli list output; skipping",
             file=sys.stderr,
         )
-        return "error", surface_key
+        return "error", None
+
+    current_hash = command_surface_hash(selected)
+
+    # Skip the Claude call when this skill's commands are unchanged since the last
+    # sync — avoids both API cost and cosmetic churn.
+    if not force and prior_hashes.get(skill) == current_hash:
+        print(f"  {skill}: command surface unchanged, skipping Claude call")
+        return "skipped-unchanged", current_hash
 
     with open(skill_path) as f:
         original = f.read()
@@ -332,7 +339,7 @@ def sync_skill(client, skill, selector, commands, snapshot, force):
             model_missing = False
         if not model_missing:
             print(f"ERROR: {skill}: Claude API call failed: {primary_err}", file=sys.stderr)
-            return "error", surface_key
+            return "error", current_hash
         print(
             f"  {skill}: {MODEL} unavailable, retrying with {FALLBACK_MODEL}",
             file=sys.stderr,
@@ -344,17 +351,17 @@ def sync_skill(client, skill, selector, commands, snapshot, force):
                 f"ERROR: {skill}: Claude API call failed: {fallback_err}",
                 file=sys.stderr,
             )
-            return "error", surface_key
+            return "error", current_hash
 
     if proposed.strip() == original.strip():
         print(f"  {skill}: no changes proposed")
-        return "unchanged", surface_key
+        return "unchanged", current_hash
 
     # Reject bloat before writing — keep skills short and meaningful.
     length_error = check_length(original, proposed)
     if length_error:
         print(f"ERROR: {skill}: discarded change, {length_error}", file=sys.stderr)
-        return "error", surface_key
+        return "error", current_hash
 
     # Write, then validate. Revert if the result violates the SKILL.md contract.
     with open(skill_path, "w") as f:
@@ -365,10 +372,10 @@ def sync_skill(client, skill, selector, commands, snapshot, force):
             f.write(original)
         for e in errors:
             print(f"ERROR: {skill}: discarded change, validation failed: {e}", file=sys.stderr)
-        return "error", surface_key
+        return "error", current_hash
 
     print(f"  {skill}: updated")
-    return "updated", surface_key
+    return "updated", current_hash
 
 
 def main():
@@ -390,7 +397,7 @@ def main():
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Sync every mapped skill even if versions and command surface are unchanged",
+        help="Run the sync even if acli_version and spec_version are unchanged",
     )
     args = parser.parse_args()
 
@@ -415,31 +422,31 @@ def main():
         return 2
     print(f"Loaded {len(commands)} acli commands from {args.commands}")
 
-    snapshot = load_json(_COMMANDS_SNAPSHOT_FILE, {})
     client = make_client()
 
-    new_snapshot = {}
-    counts = {"updated": 0, "unchanged": 0, "skipped-unchanged": 0, "error": 0}
+    prior_hashes = state.get("skill_hashes", {})
+    new_hashes = dict(prior_hashes)  # start from prior; overwrite per outcome
+    counts = {"updated": 0, "unchanged": 0, "skipped-unchanged": 0, "skipped": 0, "error": 0}
     attempted = 0
 
     for skill, selector in SKILL_COMMAND_MAP.items():
-        status, surface_key = sync_skill(
-            client, skill, selector, commands, snapshot, args.force
+        status, command_hash = sync_skill(
+            client, skill, selector, commands, prior_hashes, args.force
         )
         counts[status] += 1
-        if selector is not None:
-            attempted += 1
-            # Preserve the prior snapshot entry on error so we retry next run.
-            if status == "error":
-                if skill in snapshot:
-                    new_snapshot[skill] = snapshot[skill]
-            elif surface_key is not None:
-                new_snapshot[skill] = surface_key
+        if selector is None:
+            continue
+        attempted += 1
+        # Record the current hash only when the skill is in a good state, so an
+        # errored skill keeps its old hash and gets retried next run.
+        if status in ("updated", "unchanged", "skipped-unchanged") and command_hash:
+            new_hashes[skill] = command_hash
 
     print(
         "Done: "
         f"{counts['updated']} updated, {counts['unchanged']} unchanged, "
-        f"{counts['skipped-unchanged']} skipped, {counts['error']} errors."
+        f"{counts['skipped-unchanged']} skipped (no command change), "
+        f"{counts['error']} errors."
     )
 
     # Fail only if every command-driven skill we attempted errored — a partial
@@ -449,16 +456,15 @@ def main():
         print("ERROR: all skills failed; not updating state.", file=sys.stderr)
         return 1
 
-    # Always persist the per-skill snapshot: successful skills advance, failed
-    # skills keep their previous snapshot so an unchanged surface still retries.
-    write_json(_COMMANDS_SNAPSHOT_FILE, new_snapshot)
+    # Persist the per-skill hashes so unchanged skills are skipped next run.
+    state["skill_hashes"] = new_hashes
 
     # Only mark the release fully synced (advance acli_version/spec_version) when
     # every skill succeeded. Advancing on a partial failure would trip the AC1
     # early-exit on the next run with the same versions, so the failed skills
     # would never be retried without --force. On partial success we still record
-    # last_run for auditing but leave the versions unadvanced so the next release
-    # run reprocesses the stragglers.
+    # last_run and the successful hashes, but leave the versions unadvanced so the
+    # next release run reprocesses the stragglers.
     state["last_run"] = args.last_run
     if counts["error"] == 0:
         state["acli_version"] = args.acli_version
