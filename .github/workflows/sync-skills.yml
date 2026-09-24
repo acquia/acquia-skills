@@ -146,12 +146,13 @@ jobs:
 
           # If the branch already exists (e.g. a --force rerun to correct a prior
           # sync), update it so the open PR refreshes instead of silently skipping.
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "Branch $BRANCH exists; force-updating it to refresh the PR."
-            git push --force-with-lease origin "$BRANCH"
-          else
-            git push origin "$BRANCH"
-          fi
+if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+  echo "Branch $BRANCH exists; force-updating it to refresh the PR."
+  git fetch origin "$BRANCH:refs/remotes/origin/$BRANCH"
+  git push --force-with-lease origin "$BRANCH"
+else
+  git push origin "$BRANCH"
+fi
 
           BODY=$(cat <<EOF
           Automated skill sync triggered by ACLI release **v${VERSION}**.
