@@ -1,0 +1,134 @@
+name: Sync ACLI skills
+
+# Receives the sync signal fired by acquia/cli/.github/workflows/sync-skills.yml
+# on each ACLI release (event_type: sync-acli-skills), installs the released ACLI
+# build, regenerates the acli/* SKILL.md docs to match its command surface, and
+# opens a PR for a maintainer to review. Can also be run manually.
+
+on:
+  repository_dispatch:
+    types: [sync-acli-skills]
+  workflow_dispatch:
+    inputs:
+      acli_version:
+        description: 'ACLI release tag to sync against (e.g. 4.0.1)'
+        required: true
+        type: string
+      spec_version:
+        description: 'acquia-spec.version commit at that release'
+        required: false
+        default: ''
+        type: string
+      force:
+        description: 'Sync all skills even if versions/commands are unchanged'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-skills:
+    runs-on: ubuntu-24.04
+    name: Sync acli skills from ACLI release
+    steps:
+      - name: Resolve inputs
+        id: inputs
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "acli_version=${{ github.event.client_payload.acli_version }}" >> "$GITHUB_OUTPUT"
+            echo "spec_version=${{ github.event.client_payload.spec_version }}" >> "$GITHUB_OUTPUT"
+            echo "force=${{ github.event.client_payload.force }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "acli_version=${{ inputs.acli_version }}" >> "$GITHUB_OUTPUT"
+            echo "spec_version=${{ inputs.spec_version }}" >> "$GITHUB_OUTPUT"
+            echo "force=${{ inputs.force }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout acquia-skills
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install anthropic pyyaml
+
+      - name: Install ACLI ${{ steps.inputs.outputs.acli_version }}
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.inputs.outputs.acli_version }}"
+          curl -fsSL -o acli \
+            "https://github.com/acquia/cli/releases/download/${TAG}/acli.phar"
+          chmod +x acli
+          ./acli --version
+
+      - name: Generate command list
+        run: ./acli list --format=json > /tmp/acli-commands.json
+
+      - name: Update skills
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          FORCE_FLAG=""
+          if [ "${{ steps.inputs.outputs.force }}" = "true" ]; then
+            FORCE_FLAG="--force"
+          fi
+          python3 scripts/update_skills.py \
+            --acli-version "${{ steps.inputs.outputs.acli_version }}" \
+            --spec-version "${{ steps.inputs.outputs.spec_version }}" \
+            --commands /tmp/acli-commands.json \
+            --last-run "$(date -u +%F)" \
+            $FORCE_FLAG
+
+      - name: Validate manifests
+        run: python3 scripts/validate_manifests.py
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No skill changes; nothing to open a PR for."
+            exit 0
+          fi
+
+          VERSION="${{ steps.inputs.outputs.acli_version }}"
+          BRANCH="chore/sync-skills-acli-${VERSION}"
+
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH already exists on origin; skipping."
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only | sed 's/^/- /')
+
+          git config user.name "acquia-pipeline"
+          git config user.email "acquia-pipeline@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "Sync skills with ACLI v${VERSION}"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "Sync skills with ACLI v${VERSION}" \
+            --body "$(cat <<EOF
+          Automated skill sync triggered by ACLI release **v${VERSION}**.
+
+          Changed files:
+          ${CHANGED}
+
+          > ⚠️ This content is AI-generated (\`update_skills.py\`, model \`claude-sonnet-5\`)
+          > from the released ACLI command surface. Review carefully before merging —
+          > verify commands, flags, and examples against \`acli list\`.
+
+          Release: https://github.com/acquia/cli/releases/tag/${VERSION}
+          EOF
+          )"
