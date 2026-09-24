@@ -449,17 +449,29 @@ def main():
         print("ERROR: all skills failed; not updating state.", file=sys.stderr)
         return 1
 
-    # Persist snapshot + state on (partial) success (AC4).
+    # Always persist the per-skill snapshot: successful skills advance, failed
+    # skills keep their previous snapshot so an unchanged surface still retries.
     write_json(_COMMANDS_SNAPSHOT_FILE, new_snapshot)
-    state.update(
-        {
-            "acli_version": args.acli_version,
-            "spec_version": args.spec_version,
-            "last_run": args.last_run,
-        }
-    )
-    write_json(_STATE_FILE, state)
-    print(f"State updated: acli {args.acli_version}, spec {args.spec_version[:12]}.")
+
+    # Only mark the release fully synced (advance acli_version/spec_version) when
+    # every skill succeeded. Advancing on a partial failure would trip the AC1
+    # early-exit on the next run with the same versions, so the failed skills
+    # would never be retried without --force. On partial success we still record
+    # last_run for auditing but leave the versions unadvanced so the next release
+    # run reprocesses the stragglers.
+    state["last_run"] = args.last_run
+    if counts["error"] == 0:
+        state["acli_version"] = args.acli_version
+        state["spec_version"] = args.spec_version
+        write_json(_STATE_FILE, state)
+        print(f"State updated: acli {args.acli_version}, spec {args.spec_version[:12]}.")
+    else:
+        write_json(_STATE_FILE, state)
+        print(
+            f"Partial sync ({counts['error']} skill(s) failed): versions NOT advanced "
+            "so failed skills retry on the next run. Use --force to retry now.",
+            file=sys.stderr,
+        )
     return 0
 
 

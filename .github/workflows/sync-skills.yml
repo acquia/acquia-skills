@@ -34,18 +34,49 @@ jobs:
     runs-on: ubuntu-24.04
     name: Sync acli skills from ACLI release
     steps:
-      - name: Resolve inputs
+      - name: Resolve and validate inputs
         id: inputs
+        # Pass all untrusted contexts through env vars (never interpolate ${{ }}
+        # directly into shell source) and validate them before use, so a crafted
+        # dispatch payload cannot inject shell commands.
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_ACLI_VERSION: ${{ github.event.client_payload.acli_version }}
+          DISPATCH_SPEC_VERSION: ${{ github.event.client_payload.spec_version }}
+          DISPATCH_FORCE: ${{ github.event.client_payload.force }}
+          INPUT_ACLI_VERSION: ${{ inputs.acli_version }}
+          INPUT_SPEC_VERSION: ${{ inputs.spec_version }}
+          INPUT_FORCE: ${{ inputs.force }}
         run: |
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            echo "acli_version=${{ github.event.client_payload.acli_version }}" >> "$GITHUB_OUTPUT"
-            echo "spec_version=${{ github.event.client_payload.spec_version }}" >> "$GITHUB_OUTPUT"
-            echo "force=${{ github.event.client_payload.force }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "repository_dispatch" ]; then
+            ACLI_VERSION="$DISPATCH_ACLI_VERSION"
+            SPEC_VERSION="$DISPATCH_SPEC_VERSION"
+            FORCE="$DISPATCH_FORCE"
           else
-            echo "acli_version=${{ inputs.acli_version }}" >> "$GITHUB_OUTPUT"
-            echo "spec_version=${{ inputs.spec_version }}" >> "$GITHUB_OUTPUT"
-            echo "force=${{ inputs.force }}" >> "$GITHUB_OUTPUT"
+            ACLI_VERSION="$INPUT_ACLI_VERSION"
+            SPEC_VERSION="$INPUT_SPEC_VERSION"
+            FORCE="$INPUT_FORCE"
           fi
+
+          # acli_version: release tag, digits/dots with optional pre-release suffix.
+          if ! printf '%s' "$ACLI_VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$'; then
+            echo "::error::Invalid acli_version: '$ACLI_VERSION'"
+            exit 1
+          fi
+          # spec_version: optional; if set, a hex git SHA.
+          if [ -n "$SPEC_VERSION" ] && ! printf '%s' "$SPEC_VERSION" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::Invalid spec_version: '$SPEC_VERSION'"
+            exit 1
+          fi
+          # force: normalize to a strict boolean.
+          if [ "$FORCE" = "true" ]; then FORCE="true"; else FORCE="false"; fi
+
+          {
+            echo "acli_version=$ACLI_VERSION"
+            echo "spec_version=$SPEC_VERSION"
+            echo "force=$FORCE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Checkout acquia-skills
         uses: actions/checkout@v4
@@ -59,9 +90,10 @@ jobs:
         run: pip install anthropic pyyaml
 
       - name: Install ACLI ${{ steps.inputs.outputs.acli_version }}
+        env:
+          TAG: ${{ steps.inputs.outputs.acli_version }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.inputs.outputs.acli_version }}"
           curl -fsSL -o acli \
             "https://github.com/acquia/cli/releases/download/${TAG}/acli.phar"
           chmod +x acli
@@ -73,14 +105,18 @@ jobs:
       - name: Update skills
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ACLI_VERSION: ${{ steps.inputs.outputs.acli_version }}
+          SPEC_VERSION: ${{ steps.inputs.outputs.spec_version }}
+          FORCE: ${{ steps.inputs.outputs.force }}
         run: |
+          set -euo pipefail
           FORCE_FLAG=""
-          if [ "${{ steps.inputs.outputs.force }}" = "true" ]; then
+          if [ "$FORCE" = "true" ]; then
             FORCE_FLAG="--force"
           fi
           python3 scripts/update_skills.py \
-            --acli-version "${{ steps.inputs.outputs.acli_version }}" \
-            --spec-version "${{ steps.inputs.outputs.spec_version }}" \
+            --acli-version "$ACLI_VERSION" \
+            --spec-version "$SPEC_VERSION" \
             --commands /tmp/acli-commands.json \
             --last-run "$(date -u +%F)" \
             $FORCE_FLAG
@@ -88,9 +124,10 @@ jobs:
       - name: Validate manifests
         run: python3 scripts/validate_manifests.py
 
-      - name: Open pull request
+      - name: Open or update pull request
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.inputs.outputs.acli_version }}
         run: |
           set -euo pipefail
           if git diff --quiet; then
@@ -98,28 +135,25 @@ jobs:
             exit 0
           fi
 
-          VERSION="${{ steps.inputs.outputs.acli_version }}"
           BRANCH="chore/sync-skills-acli-${VERSION}"
-
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "Branch $BRANCH already exists on origin; skipping."
-            exit 0
-          fi
-
           CHANGED=$(git diff --name-only | sed 's/^/- /')
 
-          git config user.name "acquia-pipeline"
-          git config user.email "acquia-pipeline@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -b "$BRANCH"
           git add -A
           git commit -m "Sync skills with ACLI v${VERSION}"
-          git push origin "$BRANCH"
 
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Sync skills with ACLI v${VERSION}" \
-            --body "$(cat <<EOF
+          # If the branch already exists (e.g. a --force rerun to correct a prior
+          # sync), update it so the open PR refreshes instead of silently skipping.
+          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
+            echo "Branch $BRANCH exists; force-updating it to refresh the PR."
+            git push --force-with-lease origin "$BRANCH"
+          else
+            git push origin "$BRANCH"
+          fi
+
+          BODY=$(cat <<EOF
           Automated skill sync triggered by ACLI release **v${VERSION}**.
 
           Changed files:
@@ -131,4 +165,16 @@ jobs:
 
           Release: https://github.com/acquia/cli/releases/tag/${VERSION}
           EOF
-          )"
+          )
+
+          # Create a PR, or update the existing one's body if it's already open.
+          if gh pr view "$BRANCH" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
+            echo "PR for $BRANCH already open; updating its description."
+            gh pr edit "$BRANCH" --title "Sync skills with ACLI v${VERSION}" --body "$BODY"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Sync skills with ACLI v${VERSION}" \
+              --body "$BODY"
+          fi
