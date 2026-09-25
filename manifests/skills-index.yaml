@@ -99,6 +99,11 @@ skills:
     audience: user
     path: skills/acli/meo-identity-access/SKILL.md
 
+  - id: acli-meo-translation-layer
+    product: acli
+    audience: user
+    path: skills/acli/meo-translation-layer/SKILL.md
+
   # pipelines-cli skills
   - id: pipelines-cli-getting-started
     product: pipelines-cli
