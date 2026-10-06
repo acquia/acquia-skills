@@ -101,13 +101,13 @@ jobs:
           TAG: ${{ steps.inputs.outputs.acli_version }}
         run: |
           set -euo pipefail
-          curl -fsSL -o acli \
+          curl -fsSL -o /tmp/acli \
             "https://github.com/acquia/cli/releases/download/${TAG}/acli.phar"
-          chmod +x acli
-          ./acli --version
+          chmod +x /tmp/acli
+          /tmp/acli --version
 
       - name: Generate command list
-        run: ./acli list --format=json > /tmp/acli-commands.json
+        run: /tmp/acli list --format=json > /tmp/acli-commands.json
 
       - name: Update skills
         env:
