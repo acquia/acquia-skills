@@ -55,7 +55,7 @@ Example response once provisioning finishes:
 ```json
 {
     "trial_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "site_name": "my-trial-site",
+    "site_name": "mytrialsite",
     "status": "completed",
     "percent_complete": 100,
     "region": "us-east-1",
@@ -83,18 +83,19 @@ acli trials:create <site_name> <site_template_id> <region>
 
 | Argument | Required | Description |
 |---|---|---|
-| `site_name` | Yes | Name for the trial site |
+| `site_name` | Yes | Name for the trial site. **Lowercase letters and digits only, must start with a letter, max 60 characters** (`^[a-z][a-z0-9]*$`) — no hyphens, underscores, or uppercase. A **400** is returned if this pattern isn't met. |
 | `site_template_id` | Yes | Drupal template ID — see [List Templates](#list-available-drupal-templates) below to resolve a name to an ID |
 | `region` | Yes | AWS region for provisioning — see [List Regions](#list-available-regions) below |
 
 ```bash
 # Example
-acli trials:create my-trial-site umami us-east-1
+acli trials:create mytrialsite umami us-east-1
 ```
 
 **Before calling this:**
 1. Run `account:find-trial` first. If it returns an existing trial (any status other than a 404), do not call `trials:create` again — the API returns **409 Conflict** for a second active trial. Report the existing trial's status instead.
 2. Resolve `site_template_id` and `region` via the list commands below rather than guessing or hardcoding a value — available templates and regions change over time.
+3. Sanitize any user-provided site name to fit the `site_name` pattern above (e.g. lowercase it and strip hyphens/spaces) before calling this — don't pass the user's raw input through unmodified.
 
 On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `account:find-trial` afterward to track provisioning and eventually get the site URL.
 
@@ -162,7 +163,7 @@ acli trials:list-templates
 acli trials:list-regions
 
 # 3. Create the trial
-acli trials:create my-trial-site umami us-east-1
+acli trials:create mytrialsite umami us-east-1
 
 # 4. Poll until status is "completed" or "failed"
 acli account:find-trial
@@ -173,6 +174,10 @@ Once `status: completed`, read `_links.site.href` for the live URL and `_links.a
 ---
 
 ## Troubleshooting
+
+### "400 Bad Request" / validation error on `trials:create`
+
+`site_name` must match `^[a-z][a-z0-9]*$` (lowercase letters/digits only, starts with a letter, max 60 chars). Strip hyphens, underscores, and uppercase from the requested name before calling `trials:create`.
 
 ### "409 Conflict" on `trials:create`
 
