@@ -125,25 +125,18 @@ jobs:
             -o /usr/local/bin/acli
           chmod +x /usr/local/bin/acli
 
-      - name: Authenticate
-        env:
-          ACQUIA_KEY: ${{ secrets.ACQUIA_KEY }}
-          ACQUIA_SECRET: ${{ secrets.ACQUIA_SECRET }}
-        run: |
-          mkdir -p ~/.acquia
-          cat > ~/.acquia/credentials.json <<EOF
-          {
-            "acquia-cloud-api": {
-              "key": "$ACQUIA_KEY",
-              "secret": "$ACQUIA_SECRET"
-            }
-          }
-          EOF
-
       - name: Deploy to production
+        env:
+          ACLI_KEY: ${{ secrets.ACQUIA_KEY }}
+          ACLI_SECRET: ${{ secrets.ACQUIA_SECRET }}
         run: |
           acli api:environments:code-switch ${{ vars.ACQUIA_PROD_ENV_ID }} main
 ```
+
+Store the credentials as repository secrets named `ACQUIA_KEY`/`ACQUIA_SECRET`; the `env:`
+block above maps them into the job as `ACLI_KEY`/`ACLI_SECRET`, which is what ACLI itself
+reads. They take first priority over any stored credentials, so there's no credentials file
+to write — just map them for the step that needs them.
 
 ### GitLab CI/CD
 
@@ -152,25 +145,23 @@ jobs:
 deploy_production:
   stage: deploy
   image: ubuntu:latest
+  variables:
+    ACLI_KEY: $ACQUIA_KEY
+    ACLI_SECRET: $ACQUIA_SECRET
   before_script:
     - curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
         -o /usr/local/bin/acli
     - chmod +x /usr/local/bin/acli
-    - mkdir -p ~/.acquia
-    - |
-      cat > ~/.acquia/credentials.json <<EOF
-      {
-        "acquia-cloud-api": {
-          "key": "$ACQUIA_KEY",
-          "secret": "$ACQUIA_SECRET"
-        }
-      }
-      EOF
   script:
     - acli api:environments:code-switch $ACQUIA_PROD_ENV_ID $CI_COMMIT_BRANCH
   only:
     - main
 ```
+
+Set `ACQUIA_KEY` and `ACQUIA_SECRET` as masked CI/CD variables in the project's Settings →
+CI/CD → Variables. GitLab injects CI/CD variables into the job environment under the same
+name they're stored as, so the `variables:` block above re-maps them to `ACLI_KEY`/`ACLI_SECRET`
+for the job — that's the name ACLI itself reads.
 
 ---
 
@@ -271,39 +262,44 @@ fi
 
 ---
 
-## Advanced: API Key Authentication
+## Advanced: Authenticating Without a Human Present
 
-For automation on servers, use API keys instead of browser authentication.
+Three options for unattended automation, depending on whether a human is in the loop at all:
 
-### Generate API credentials
-
-In Acquia Cloud UI:
-
-1. Go to Settings → API Tokens
-2. Generate a new token
-3. Copy the Key and Secret
-
-### Use with acli
+**API key + secret via environment variables** — for a true service account with nobody ever
+approving a login (a long-running CI bot, a scheduled job). Generate a key in Acquia Cloud UI
+under Settings → API Tokens, then pass it via environment variables:
 
 ```bash
-# Method 1: Environment variables
-export ACQUIA_KEY="your-key-here"
-export ACQUIA_SECRET="your-secret-here"
-acli api:applications:list
-
-# Method 2: Credentials file
-mkdir -p ~/.acquia
-cat > ~/.acquia/credentials.json <<EOF
-{
-  "acquia-cloud-api": {
-    "key": "your-key-here",
-    "secret": "your-secret-here"
-  }
-}
-EOF
-
+export ACLI_KEY="your-key-here"
+export ACLI_SECRET="your-secret-here"
 acli api:applications:list
 ```
+
+These take first priority over any stored credentials, so no prior `acli auth:login` is
+needed on the machine running this — every command reads them fresh, and nothing is written
+to disk.
+
+**API key + secret via `auth:login --key`/`--secret`** — the same credentials, used instead
+to persist a stored session once rather than exporting the pair for every command:
+
+```bash
+acli auth:login --key="$ACLI_KEY" --secret="$ACLI_SECRET" --no-interaction
+```
+
+This writes the credentials to `~/.acquia/cloud_api.conf`, so subsequent commands in the same
+job pick them up without re-passing anything. **Only pass the values through a variable like
+this, never as literal text** — a literal `--key=abc123` on the command line appears in shell
+history and in process listings (`ps aux`) on the same machine. If the runner is shared or
+multi-tenant, prefer the environment-variable-only option above, which never puts the secret
+on the command line at all.
+
+**Device code with `--no-interaction`** — for agent-driven automation where a human still
+exists to approve the sign-in (just not interactively, in this exact process). Running
+`acli auth:login --no-interaction` with no stored credentials starts the device code flow and
+prints the verification URL and code to stdout without prompting for anything; an existing
+device session re-authenticates the same way. A human still has to approve in a browser, but
+the command itself never blocks on terminal input.
 
 ### Secure credential management
 
@@ -333,14 +329,19 @@ vault kv get secret/acquia/cli-key
 
 ### Authentication fails in CI
 
-Set the `ACLI_NO_INTERACTION` environment variable and supply credentials explicitly:
+For a service account with no human ever approving a login, export the key and secret —
+these take priority over any stored credentials automatically, with no `auth:login` step and
+no `--no-interaction` flag needed:
 
 ```bash
-export ACLI_NO_INTERACTION=1
 export ACLI_KEY=your-api-key
 export ACLI_SECRET=your-api-secret
 acli api:applications:list
 ```
+
+If a human does approve sign-in (agent-driven automation, not a pure service account), use
+`acli auth:login --no-interaction` instead — there's no separate environment variable for
+suppressing prompts, only the `--no-interaction`/`-n` flag on the command itself.
 
 ### Command hangs waiting for input
 
