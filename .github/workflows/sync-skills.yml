@@ -1,6 +1,6 @@
 name: Sync ACLI skills
 
-# Receives the sync signal fired by acquia/cli/.github/workflows/sync-skills.yml
+# Receive the sync signal fired by acquia/cli/.github/workflows/sync-skills.yml
 # on each ACLI release (event_type: sync-acli-skills), installs the released ACLI
 # build, regenerates the acli/* SKILL.md docs to match its command surface, and
 # opens a PR for a maintainer to review. Can also be run manually.
