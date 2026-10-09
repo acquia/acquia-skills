@@ -108,7 +108,7 @@ acli auth:login
    acli auth:login
    ```
 
-### "Invalid JSON in credentials.json"
+### "Invalid JSON in cloud_api.conf"
 
 **Cause:** Credentials file is corrupted.
 
@@ -116,7 +116,7 @@ acli auth:login
 
 ```bash
 # Remove the corrupted file
-rm -rf ~/.acquia/cloud_api/
+rm ~/.acquia/cloud_api.conf
 
 # Re-authenticate
 acli auth:login

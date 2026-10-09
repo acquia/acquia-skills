@@ -91,19 +91,35 @@ acli --version
 
 ## Your First Command: Authentication
 
-Acquia CLI uses OAuth to authenticate with your Acquia account. You'll only need to do this once.
-
 ```bash
 acli auth:login
 ```
 
-This will:
-1. Open your browser
-2. Prompt you to authorize Acquia CLI
-3. Generate an access token
-4. Store it locally in `~/.acquia/cloud_api/credentials.json` (encrypted)
+What happens depends on what's already on your machine:
 
-**Tokens are valid for 30 days.** If your token expires, run `acli auth:login` again.
+- **No stored credentials** — ACLI starts a device code sign-in: it prints a short URL and a
+  code, opens your browser automatically if one is available, and waits while you approve the
+  sign-in there. Your organization's SSO/MFA policy applies, same as signing in anywhere else.
+  No key or secret to copy-paste.
+- **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
+  device code instead. Say no to keep using the existing key.
+- **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
+  goes straight to the classic API key + secret flow, generated from Acquia Cloud UI under
+  Settings → API Tokens.
+
+Credentials are stored locally in `~/.acquia/cloud_api.conf`. A device code session refreshes
+itself silently in the background while you're using acli regularly; if you haven't run acli in
+a while and a command reports your session has expired, just run `acli auth:login` again.
+
+### Log Out
+
+```bash
+acli auth:logout
+```
+
+Removes whichever credentials are active (device token, API key, or both) from
+`~/.acquia/cloud_api.conf`. Add `--delete` to also forget a stored API key entirely instead of
+just deactivating it.
 
 ### Verify Authentication
 
@@ -224,8 +240,7 @@ Configuration is stored at: `~/.acquia/`
 
 ```
 ~/.acquia/
-├── cloud_api/
-│   └── credentials.json       # Your API token (encrypted)
+├── cloud_api.conf             # Credentials: device token and/or API key + secret
 ├── config.yaml                # Settings
 └── cache/                      # Cached data
 ```
