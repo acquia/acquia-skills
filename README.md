@@ -20,6 +20,7 @@ Agent Skills for [Acquia CLI](https://docs.acquia.com/acquia-cli/), [Pipelines C
 | `codestudio` | Set up Code Studio (GitLab CI/CD) projects (ACE only) |
 | `scripting` | Run acli non-interactively in scripts and CI/CD |
 | `troubleshooting` | Debug acli errors and authentication failures |
+| `trial-management` | Create a trial site, check provisioning status, get the live site/admin URL, retry a failed trial |
 
 #### MEO (Multi-site Enterprise Operations) — `acli api:v3:*`
 

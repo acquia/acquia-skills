@@ -18,6 +18,7 @@ Command-line skills for [Acquia CLI (acli)](https://github.com/acquia/cli).
 | [codestudio](codestudio/SKILL.md) | Set up Code Studio, change PHP version (ACE only) |
 | [scripting](scripting/SKILL.md) | Use acli non-interactively in scripts and CI/CD pipelines |
 | [troubleshooting](troubleshooting/SKILL.md) | Diagnose and fix common acli errors |
+| [trial-management](trial-management/SKILL.md) | Create a trial site, check provisioning status, get the live site/admin URL, retry a failed trial |
 
 ### MEO (Multi-site Enterprise Operations) — `acli api:v3:*`
 
