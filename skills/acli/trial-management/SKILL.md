@@ -20,7 +20,7 @@ Use when:
 - Retrying a trial that failed to provision
 - Picking a Drupal template or AWS region before creating a trial
 
-**Note:** The Trials API is a lightweight, pre-MEO provisioning surface — part of the same `acli api:*` (ACE) spec, under the flat `api:trials:*` / `api:account:*` namespace shown below (not `acli api:v3:*`, which is MEO). A user can have only **one active trial at a time**.
+**Note:** The Trials API is a lightweight, pre-MEO provisioning surface in the v2 Cloud API (`acli api:*`), not MEO (`acli api:v3:*`). A user can have only **one active trial at a time**.
 
 ---
 
@@ -95,9 +95,9 @@ acli api:trials:create mytrialsite umami us-east-1
 **Before calling this:**
 1. Run `api:account:find-trial` first. If it returns an existing trial (any status other than a 404), do not call `api:trials:create` again — the API returns **409 Conflict** for a second active trial. Report the existing trial's status instead.
 2. Resolve `site_template_id` and `region` via the list commands below rather than guessing or hardcoding a value — available templates and regions change over time.
-3. Sanitize any user-provided site name to fit the `site_name` pattern above (e.g. lowercase it and strip hyphens/spaces) before calling this — don't pass the user's raw input through unmodified.
+3. If the user's requested name doesn't fit the `site_name` pattern above, propose a sanitized version (e.g. lowercased, hyphens/spaces stripped) and confirm it with the user before calling this.
 
-On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `api:account:find-trial` afterward to track provisioning and eventually get the site URL.
+On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `api:account:find-trial` afterward to track provisioning and eventually get the site URL. **Do not pass `--task-wait`** — trials responses have no `_links.notification`, so ACLI will error.
 
 ---
 
@@ -107,10 +107,10 @@ On success (`202`), the response is a message + `_links.self` pointing at the ne
 acli api:trials:retry <trialId>
 ```
 
-Only call this when `api:account:find-trial` shows `status: failed` — the API returns **409 Conflict** if the trial isn't currently in a failed state. The `trialId` is the failed trial's `trial_id` field (also exposed as `_links.retry.href` on the failed trial resource).
+Only call this when `api:account:find-trial` shows `status: failed` — the API returns **409 Conflict** if the trial isn't currently in a failed state. The `trialId` is the failed trial's `id` field (also embedded in the `_links.retry.href` URL on the failed trial resource).
 
 ```bash
-# Example — trial_id from a failed api:account:find-trial response
+# Example — id from a failed api:account:find-trial response
 acli api:trials:retry c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
@@ -126,7 +126,7 @@ acli api:trials:list-templates
 
 Supports pagination: `--offset=<n>` and `--limit=<n>`.
 
-Returns each template's `id` (pass this as `site_template_id` to `api:trials:create`), `name`, `description`, `tags`, and `features`. Use this to match a user's request ("something for a nonprofit", "a food/restaurant site") to a template `id` — don't hardcode a template.
+Returns each template's `id` (pass this as `site_template_id` to `api:trials:create`), `name`, `description`, `tags`, and `features`. Use this to semantically match a user's request ("something for a nonprofit", "a food/restaurant site") against the `name`/`description`/`tags` fields — don't hardcode a template. If nothing matches well, fall back to the blank starter template; either way, **confirm the chosen template with the user conversationally** before creating the trial — don't silently select one.
 
 ```json
 { "id": "umami", "name": "Umami", "description": "...food and beverage websites...", "tags": ["Food & Beverage", "E-commerce", "Events"] }
@@ -148,7 +148,7 @@ Returns each region's `id` (pass this as `region` to `api:trials:create`) and hu
 { "id": "us-east-1", "name": "US East (N. Virginia)" }
 ```
 
-If the user doesn't specify a region, pick the closest sensible default (e.g. `us-east-1`) rather than prompting unnecessarily.
+If the user doesn't specify a region, pick a sensible default from the `api:trials:list-regions` output (e.g. `us-east-1` for US users) rather than hardcoding one or prompting unnecessarily — but make the choice transparent to the user, don't select it silently.
 
 ---
 
@@ -194,6 +194,20 @@ The user has no active trial. Offer to create one with `api:trials:create`.
 ### No `_links.site` in the response
 
 The trial hasn't finished provisioning. Check `status` — it must be `completed` before a site URL exists. Keep polling `api:account:find-trial`.
+
+---
+
+## Authentication
+
+Trial commands require authentication first:
+
+```bash
+acli auth:login
+```
+
+Today this is the standard API key flow (see [Getting Started](../getting-started/SKILL.md)): a browser opens to generate a key/secret pair, which `auth:login` then prompts for.
+
+**TODO:** Agent-driven trials are designed around device-code sign-in instead (the developer approves in a browser — including Google sign-in — with no API key needed), tracked in [acquia/cli#2049](https://github.com/acquia/cli/pull/2049) (DEVXPT-35). Until that lands, agents must still walk the user through the API key flow above.
 
 ---
 
