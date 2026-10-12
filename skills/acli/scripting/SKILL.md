@@ -268,11 +268,12 @@ Three options for unattended automation, depending on whether a human is in the 
 
 **API key + secret via environment variables** — for a true service account with nobody ever
 approving a login (a long-running CI bot, a scheduled job). Generate a key in Acquia Cloud UI
-under Settings → API Tokens, then pass it via environment variables:
+under Settings → API Tokens, store it in your secrets manager as `ACQUIA_KEY`/`ACQUIA_SECRET`,
+then export it as `ACLI_KEY`/`ACLI_SECRET` — the name ACLI itself reads:
 
 ```bash
-export ACLI_KEY="your-key-here"
-export ACLI_SECRET="your-secret-here"
+export ACLI_KEY="$ACQUIA_KEY"
+export ACLI_SECRET="$ACQUIA_SECRET"
 acli api:applications:list
 ```
 
@@ -287,19 +288,24 @@ to persist a stored session once rather than exporting the pair for every comman
 acli auth:login --key="$ACLI_KEY" --secret="$ACLI_SECRET" --no-interaction
 ```
 
-This writes the credentials to `~/.acquia/cloud_api.conf`, so subsequent commands in the same
-job pick them up without re-passing anything. **Only pass the values through a variable like
-this, never as literal text** — a literal `--key=abc123` on the command line appears in shell
-history and in process listings (`ps aux`) on the same machine. If the runner is shared or
-multi-tenant, prefer the environment-variable-only option above, which never puts the secret
-on the command line at all.
+This writes the credentials to `cloud_api.conf`, so subsequent commands in the same job pick
+them up without re-passing anything. **`--key`/`--secret` put the secret value in the
+process's argv either way** — the shell expands `"$ACLI_KEY"` before `acli` ever runs, so the
+real value is visible to `ps aux`/process listings on the same machine whether you pass it as
+a variable or as literal text. A variable only keeps the literal value out of your shell
+history. On a shared or multi-tenant runner, prefer the environment-variable-only option
+above instead — exporting `ACLI_KEY`/`ACLI_SECRET` never puts the secret on the command line
+at all, so there's nothing for another process on the box to read.
 
 **Device code with `--no-interaction`** — for agent-driven automation where a human still
 exists to approve the sign-in (just not interactively, in this exact process). Running
 `acli auth:login --no-interaction` with no stored credentials starts the device code flow and
 prints the verification URL and code to stdout without prompting for anything; an existing
-device session re-authenticates the same way. A human still has to approve in a browser, but
-the command itself never blocks on terminal input.
+device session re-authenticates the same way. A human still has to approve in a browser, and the
+command keeps polling until they do or the code expires after 10 minutes — run it so its output
+streams to the agent (e.g. in the background), since the URL and code are needed while it's
+still running. Many agent harnesses only show a command's output after it exits, and the
+point of this flow is to relay the code *during* the wait, not after.
 
 ### Secure credential management
 
@@ -331,11 +337,12 @@ vault kv get secret/acquia/cli-key
 
 For a service account with no human ever approving a login, export the key and secret —
 these take priority over any stored credentials automatically, with no `auth:login` step and
-no `--no-interaction` flag needed:
+no `--no-interaction` flag needed. If the key is stored as `ACQUIA_KEY`/`ACQUIA_SECRET` in
+your CI platform, export it as `ACLI_KEY`/`ACLI_SECRET` for ACLI to read:
 
 ```bash
-export ACLI_KEY=your-api-key
-export ACLI_SECRET=your-api-secret
+export ACLI_KEY="$ACQUIA_KEY"
+export ACLI_SECRET="$ACQUIA_SECRET"
 acli api:applications:list
 ```
 

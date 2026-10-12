@@ -103,13 +103,18 @@ What happens depends on what's already on your machine:
   No key or secret to copy-paste.
 - **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
   device code instead. Say no to keep using the existing key.
+- **A device code session already active** — ACLI reports you're already signed in and asks
+  whether to re-authenticate. Say no to leave the existing session alone and exit immediately.
 - **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
   goes straight to the classic API key + secret flow, generated from Acquia Cloud UI under
   Settings → API Tokens.
 
-Credentials are stored locally in `~/.acquia/cloud_api.conf`. A device code session refreshes
-itself silently in the background while you're using acli regularly; if you haven't run acli in
-a while and a command reports your session has expired, just run `acli auth:login` again.
+Credentials are stored locally in `cloud_api.conf` in ACLI's config directory — `~/.acquia/`
+if that directory already exists on your machine, otherwise `$XDG_CONFIG_HOME/acquia/` or
+`~/.config/acquia/` on a fresh install. Set `ACLI_HOME` to override this directory explicitly
+(useful if both exist and you need to pick one). A device code session refreshes itself
+silently in the background while you're using acli regularly; if you haven't run acli in a
+while and a command reports your session has expired, just run `acli auth:login` again.
 
 ### Log Out
 
@@ -118,8 +123,8 @@ acli auth:logout
 ```
 
 Removes whichever credentials are active (device token, API key, or both) from
-`~/.acquia/cloud_api.conf`. Add `--delete` to also forget a stored API key entirely instead of
-just deactivating it.
+`cloud_api.conf`. Add `--delete` to also forget a stored API key entirely instead of just
+deactivating it.
 
 ### Verify Authentication
 
@@ -236,10 +241,13 @@ acli ide:create --debug
 
 ### Config File Location
 
-Configuration is stored at: `~/.acquia/`
+Configuration is stored in ACLI's config directory: `~/.acquia/` if that directory already
+exists on your machine (legacy installs), otherwise `$XDG_CONFIG_HOME/acquia/` or
+`~/.config/acquia/` on a fresh install. Override with `ACLI_HOME` to point at a specific
+directory explicitly.
 
 ```
-~/.acquia/
+<config dir>/
 ├── cloud_api.conf             # Credentials: device token and/or API key + secret
 ├── config.yaml                # Settings
 └── cache/                      # Cached data

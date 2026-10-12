@@ -115,12 +115,20 @@ acli auth:login
 **Solution:**
 
 ```bash
-# Remove the corrupted file
+# Find which config directory ACLI is actually using
+echo "${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+
+# Remove the corrupted file from that directory, e.g.:
 rm ~/.acquia/cloud_api.conf
 
 # Re-authenticate
 acli auth:login
 ```
+
+If both `~/.acquia/` and `~/.config/acquia/` exist on your machine with different content,
+only the one `ACLI_HOME` resolves to (legacy `~/.acquia/` wins if present) is actually in use —
+don't remove the other one without checking it first, since it may hold valid credentials
+from before a config-directory change.
 
 ---
 
@@ -457,7 +465,10 @@ acli -vvv <command> 2>&1 | grep -A 5 "Response:"
 ### Reset all configuration
 
 ```bash
-# CAUTION: This clears everything
+# CAUTION: This clears everything. Check which directory ACLI actually uses first:
+echo "${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+
+# Then remove that one, e.g.:
 rm -rf ~/.acquia
 
 # Re-authenticate
