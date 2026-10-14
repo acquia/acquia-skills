@@ -465,11 +465,12 @@ acli -vvv <command> 2>&1 | grep -A 5 "Response:"
 ### Reset all configuration
 
 ```bash
-# CAUTION: This clears everything. Check which directory ACLI actually uses first:
-echo "${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+# CAUTION: This clears everything. Resolve the directory ACLI actually uses first:
+ACLI_DIR="${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+echo "$ACLI_DIR"
 
-# Then remove that one, e.g.:
-rm -rf ~/.acquia
+# Then remove it:
+rm -rf "$ACLI_DIR"
 
 # Re-authenticate
 acli auth:login
