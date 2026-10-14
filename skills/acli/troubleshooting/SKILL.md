@@ -116,10 +116,11 @@ acli auth:login
 
 ```bash
 # Find which config directory ACLI is actually using
-echo "${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+ACLI_DIR="${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+echo "$ACLI_DIR"
 
-# Remove the corrupted file from that directory, e.g.:
-rm ~/.acquia/cloud_api.conf
+# Remove the corrupted file from that directory:
+rm "$ACLI_DIR/cloud_api.conf"
 
 # Re-authenticate
 acli auth:login
