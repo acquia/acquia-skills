@@ -97,13 +97,14 @@ Acquia CLI uses OAuth to authenticate with your Acquia account. You'll only need
 acli auth:login
 ```
 
-This will:
-1. Open your browser
-2. Prompt you to authorize Acquia CLI
-3. Generate an access token
-4. Store it locally in `~/.acquia/cloud_api/credentials.json` (encrypted)
+With no credentials stored yet, this defaults to **device code sign-in** — no API key needed:
+1. ACLI prints a verification URL and a short code, and opens the URL in a browser if one is available locally
+2. Sign in with your Acquia ID and confirm the code
+3. ACLI polls in the background and stores the resulting token once you approve
 
-**Tokens are valid for 30 days.** If your token expires, run `acli auth:login` again.
+Credentials are stored in `cloud_api.conf` under your ACLI config directory (`~/.acquia` by default, or `$ACLI_HOME` if set).
+
+Pass `--use-legacy-auth`, or `--key`/`--secret`, to use the classic API key/secret flow instead (opens a browser to generate a key, which `auth:login` then prompts for) — useful in non-interactive/CI contexts. If credentials are already stored, re-running `acli auth:login` offers to switch sign-in methods or re-authenticate; see `acli auth:login --help` for the exact prompts.
 
 ### Verify Authentication
 

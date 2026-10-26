@@ -205,9 +205,15 @@ Trial commands require authentication first:
 acli auth:login
 ```
 
-Today this is the standard API key flow (see [Getting Started](../getting-started/SKILL.md)): a browser opens to generate a key/secret pair, which `auth:login` then prompts for.
+With no credentials stored, this now defaults to **device code sign-in** — no API key needed:
 
-**TODO:** Agent-driven trials are designed around device-code sign-in instead (the developer approves in a browser — including Google sign-in — with no API key needed), tracked in [acquia/cli#2049](https://github.com/acquia/cli/pull/2049) (DEVXPT-35). Until that lands, agents must still walk the user through the API key flow above.
+1. ACLI prints a verification URL and a short user code, and opens the URL in a browser if one is available locally.
+2. The developer opens that URL (any device/browser), signs in with their Acquia ID, and confirms the code.
+3. ACLI polls in the background and stores the resulting token once approved.
+
+For an agent driving this: the command blocks on user action in another browser tab, so surface the printed URL/code to the user and wait — don't treat the blocking as a hang. Declining or letting the code expire (10 minutes) returns a structured error (`access_denied` / `expired_token`) rather than hanging silently.
+
+If credentials are already stored, `auth:login` offers to switch sign-in methods instead of just re-running the same one (see `acli auth:login --help` for the exact prompts). Pass `--use-legacy-auth`, or `--key`/`--secret`, to force the classic API key/secret flow (see [Getting Started](../getting-started/SKILL.md)) instead of device code.
 
 ---
 
