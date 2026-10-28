@@ -264,7 +264,7 @@ fi
 
 ## Advanced: Authenticating Without a Human Present
 
-Three options for unattended automation, depending on whether a human is in the loop at all:
+Four options for unattended automation, depending on whether a human is in the loop at all:
 
 **API key + secret via environment variables** — for a true service account with nobody ever
 approving a login (a long-running CI bot, a scheduled job). Generate a key in Acquia Cloud UI
@@ -296,6 +296,24 @@ a variable or as literal text. A variable only keeps the literal value out of yo
 history. On a shared or multi-tenant runner, prefer the environment-variable-only option
 above instead — exporting `ACLI_KEY`/`ACLI_SECRET` never puts the secret on the command line
 at all, so there's nothing for another process on the box to read.
+
+**A pre-issued access token via environment variables** — for a pipeline that already has a
+short-lived OAuth access token for Cloud Platform (minted by another step or a token broker)
+and shouldn't hold a long-lived key + secret at all:
+
+```bash
+export ACLI_ACCESS_TOKEN="$TOKEN"
+export ACLI_ACCESS_TOKEN_EXPIRY="$TOKEN_EXPIRY"   # Unix timestamp when the token expires
+acli api:applications:list
+```
+
+Or point at files instead, so the token never sits in the environment:
+`ACLI_ACCESS_TOKEN_FILE` and `ACLI_ACCESS_TOKEN_EXPIRY_FILE` (the file must exist, or ACLI
+errors). Always set the expiry along with the token — ACLI errors if it's missing. An expired
+token is skipped silently rather than refreshed, so mint a fresh one per job. This option has
+the **lowest** priority: `ACLI_KEY`/`ACLI_SECRET` (or a stored API key) win first, then a
+stored device code session, and only then the access token — so unset or don't store those
+on the runner if you want the token to be the one used.
 
 **Device code with `--no-interaction`** — for agent-driven automation where a human still
 exists to approve the sign-in (just not interactively, in this exact process). Running

@@ -97,7 +97,7 @@ acli api:trials:create mytrialsite umami us-east-1
 2. Resolve `site_template_id` and `region` via the list commands below rather than guessing or hardcoding a value — available templates and regions change over time.
 3. If the user's requested name doesn't fit the `site_name` pattern above, propose a sanitized version (e.g. lowercased, hyphens/spaces stripped) and confirm it with the user before calling this.
 
-On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `api:account:find-trial` afterward to track provisioning and eventually get the site URL. **Do not pass `--task-wait`** — trials responses have no `_links.notification`, so ACLI will error.
+On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `api:account:find-trial` afterward to track provisioning and eventually get the site URL. **Don't rely on `--task-wait`** — trials responses have no `_links.notification`, so ACLI prints the response, warns that there is no task to wait for, and exits successfully without waiting. Poll `api:account:find-trial` instead.
 
 ---
 
@@ -211,7 +211,7 @@ With no credentials stored, this now defaults to **device code sign-in** — no 
 2. The developer opens that URL (any device/browser), signs in with their Acquia ID, and confirms the code.
 3. ACLI polls in the background and stores the resulting token once approved.
 
-For an agent driving this: the command blocks on user action in another browser tab, so surface the printed URL/code to the user and wait — don't treat the blocking as a hang. Declining or letting the code expire (10 minutes) returns a structured error (`access_denied` / `expired_token`) rather than hanging silently.
+For an agent driving this: the command blocks on user action in another browser tab, so surface the printed URL/code to the user and wait — don't treat the blocking as a hang. Declining or letting the code expire (10 minutes) makes the command exit with an error ("Authorization denied." / "Code expired.") rather than hanging silently — see [Troubleshooting](../troubleshooting/SKILL.md#device-code-sign-in-fails) for these and the "Acquia ID may already exist" failure.
 
 If credentials are already stored, `auth:login` offers to switch sign-in methods instead of just re-running the same one (see `acli auth:login --help` for the exact prompts). Pass `--use-legacy-auth`, or `--key`/`--secret`, to force the classic API key/secret flow (see [Getting Started](../getting-started/SKILL.md)) instead of device code.
 

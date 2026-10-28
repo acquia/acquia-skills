@@ -87,6 +87,19 @@ acli auth:login
 # This opens your browser to authorize again
 ```
 
+### Device code sign-in fails
+
+`acli auth:login` (device code) ends with one of these:
+
+- **"Authorization denied."** — the sign-in was declined in the browser. Run `acli auth:login`
+  again and approve it.
+- **"Code expired. Run acli login again."** — nobody approved within 10 minutes. Run
+  `acli auth:login` again and approve sooner.
+- **"Sign-in failed: an Acquia ID may already exist for this email address."** — the
+  automatic account link (JIT provisioning) failed because an Acquia ID already exists for
+  that email. Run `acli auth:login` again and, in the browser, sign in with that email address
+  and password rather than through SSO/a social login.
+
 ### "Error: Access Denied"
 
 **Cause:** Your account doesn't have permission to access the resource.
