@@ -91,20 +91,40 @@ acli --version
 
 ## Your First Command: Authentication
 
-Acquia CLI uses OAuth to authenticate with your Acquia account. You'll only need to do this once.
-
 ```bash
 acli auth:login
 ```
 
-With no credentials stored yet, this defaults to **device code sign-in** — no API key needed:
-1. ACLI prints a verification URL and a short code, and opens the URL in a browser if one is available locally
-2. Sign in with your Acquia ID and confirm the code
-3. ACLI polls in the background and stores the resulting token once you approve
+What happens depends on what's already on your machine:
 
-Credentials are stored in `cloud_api.conf` under your ACLI config directory (`~/.acquia` by default, or `$ACLI_HOME` if set).
+- **No stored credentials** — ACLI starts a device code sign-in: it prints a short URL and a
+  code, opens your browser automatically if one is available, and waits while you approve the
+  sign-in there. Your organization's SSO/MFA policy applies, same as signing in anywhere else.
+  No key or secret to copy-paste.
+- **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
+  device code instead. Say no to keep using the existing key.
+- **A device code session already active** — ACLI reports you're already signed in and asks
+  whether to re-authenticate. Say no to leave the existing session alone and exit immediately.
+- **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
+  goes straight to the classic API key + secret flow, generated from Acquia Cloud UI under
+  Settings → API Tokens.
 
-Pass `--use-legacy-auth`, or `--key`/`--secret`, to use the classic API key/secret flow instead (opens a browser to generate a key, which `auth:login` then prompts for) — useful in non-interactive/CI contexts. If credentials are already stored, re-running `acli auth:login` offers to switch sign-in methods or re-authenticate; see `acli auth:login --help` for the exact prompts.
+Credentials are stored locally in `cloud_api.conf` in ACLI's config directory — `~/.acquia/`
+if that directory already exists on your machine, otherwise `$XDG_CONFIG_HOME/acquia/` or
+`~/.config/acquia/` on a fresh install. Set `ACLI_HOME` to override this directory explicitly
+(useful if both exist and you need to pick one). A device code session refreshes itself
+silently in the background while you're using acli regularly; if you haven't run acli in a
+while and a command reports your session has expired, just run `acli auth:login` again.
+
+### Log Out
+
+```bash
+acli auth:logout
+```
+
+Removes whichever credentials are active (device token, API key, or both) from
+`cloud_api.conf`. Add `--delete` to also forget a stored API key entirely instead of just
+deactivating it.
 
 ### Verify Authentication
 
@@ -221,12 +241,14 @@ acli ide:create --debug
 
 ### Config File Location
 
-Configuration is stored at: `~/.acquia/`
+Configuration is stored in ACLI's config directory: `~/.acquia/` if that directory already
+exists on your machine (legacy installs), otherwise `$XDG_CONFIG_HOME/acquia/` or
+`~/.config/acquia/` on a fresh install. Override with `ACLI_HOME` to point at a specific
+directory explicitly.
 
 ```
-~/.acquia/
-├── cloud_api/
-│   └── credentials.json       # Your API token (encrypted)
+<config dir>/
+├── cloud_api.conf             # Credentials: device token and/or API key + secret
 ├── config.yaml                # Settings
 └── cache/                      # Cached data
 ```

@@ -47,14 +47,14 @@ The wizard will:
 
 ```bash
 acli codestudio:wizard \
-  --key="$ACQUIA_KEY" \
-  --secret="$ACQUIA_SECRET" \
+  --key="$ACLI_KEY" \
+  --secret="$ACLI_SECRET" \
   --gitlab-token="$GITLAB_TOKEN" \
   --gitlab-project-id=12345 \
   --gitlab-host-name=code.acquia.com
 ```
 
-> **Security:** Never pass credential values directly in the command line — they appear in shell history and process listings. Always source them from environment variables or a secrets manager.
+> **Security:** Never pass credential values directly in the command line — they appear in shell history and process listings. Always source them from environment variables or a secrets manager. If your Cloud Platform key is stored as `ACQUIA_KEY`/`ACQUIA_SECRET`, export it as `ACLI_KEY`/`ACLI_SECRET` first (`export ACLI_KEY="$ACQUIA_KEY"`) — that's the name ACLI itself reads.
 
 Options:
 
@@ -99,7 +99,7 @@ acli codestudio:php-version 8.2
 ## Best Practices
 
 1. **Run the wizard first** — It sets up all required CI/CD variables automatically.
-2. **Use environment variables for credentials in CI** — Pass `--key`, `--secret`, and `--gitlab-token` via environment variables (e.g., `--key="$ACQUIA_KEY"`), never as literal values. Store secrets in your CI/CD platform's secret store.
+2. **Use environment variables for credentials in CI** — Pass `--key`, `--secret`, and `--gitlab-token` via environment variables (e.g., `--key="$ACLI_KEY"`), never as literal values. Store secrets in your CI/CD platform's secret store.
 3. **Match PHP versions** — Ensure `codestudio:php-version` matches the version in your `composer.json` platform requirements.
 
 ---
