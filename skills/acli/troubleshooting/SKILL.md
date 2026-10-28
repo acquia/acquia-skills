@@ -108,19 +108,28 @@ acli auth:login
    acli auth:login
    ```
 
-### "Invalid JSON in credentials.json"
+### "Invalid JSON in cloud_api.conf"
 
 **Cause:** Credentials file is corrupted.
 
 **Solution:**
 
 ```bash
-# Remove the corrupted file
-rm -rf ~/.acquia/cloud_api/
+# Find which config directory ACLI is actually using
+ACLI_DIR="${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+echo "$ACLI_DIR"
+
+# Remove the corrupted file from that directory:
+rm "$ACLI_DIR/cloud_api.conf"
 
 # Re-authenticate
 acli auth:login
 ```
+
+If both `~/.acquia/` and `~/.config/acquia/` exist on your machine with different content,
+only the one `ACLI_HOME` resolves to (legacy `~/.acquia/` wins if present) is actually in use —
+don't remove the other one without checking it first, since it may hold valid credentials
+from before a config-directory change.
 
 ---
 
@@ -457,8 +466,12 @@ acli -vvv <command> 2>&1 | grep -A 5 "Response:"
 ### Reset all configuration
 
 ```bash
-# CAUTION: This clears everything
-rm -rf ~/.acquia
+# CAUTION: This clears everything. Resolve the directory ACLI actually uses first:
+ACLI_DIR="${ACLI_HOME:-$([ -d ~/.acquia ] && echo ~/.acquia || echo ~/.config/acquia)}"
+echo "$ACLI_DIR"
+
+# Then remove it:
+rm -rf "$ACLI_DIR"
 
 # Re-authenticate
 acli auth:login
