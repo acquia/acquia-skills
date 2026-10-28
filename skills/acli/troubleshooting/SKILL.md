@@ -95,9 +95,8 @@ acli auth:login
   again and approve it.
 - **"Code expired. Run acli login again."** — nobody approved within 10 minutes. Run
   `acli auth:login` again and approve sooner.
-- **"Sign-in failed: an Acquia ID may already exist for this email address."** — the
-  automatic account link (JIT provisioning) failed because an Acquia ID already exists for
-  that email. Run `acli auth:login` again and, in the browser, sign in with that email address
+- **"Sign-in failed: an Acquia ID may already exist for this email address."** — an
+  Acquia ID already exists for that email, so the sign-in couldn't create or link one. Run `acli auth:login` again and, in the browser, sign in with that email address
   and password rather than through SSO/a social login.
 
 ### "Error: Access Denied"

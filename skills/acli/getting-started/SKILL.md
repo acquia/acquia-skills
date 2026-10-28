@@ -109,12 +109,6 @@ What happens depends on what's already on your machine:
   goes straight to the classic API key + secret flow, generated from Acquia Cloud UI under
   Settings → API Tokens.
 
-`--environment` (default `prod`) only affects the API key + secret flow — it selects which
-Cloud Platform API URIs are stored with the key. Device code sign-in ignores it and prints a
-warning; to sign in against a non-prod environment by device code, set `ACLI_AUTH_DOMAIN`,
-`ACLI_DEVICE_CLIENT_ID` and `ACLI_AUTH_SERVER_ID`, then point later commands at it with
-`ACLI_CLOUD_API_BASE_URI` and `ACLI_CLOUD_API_ACCOUNTS_URI`.
-
 Credentials are stored locally in `cloud_api.conf` in ACLI's config directory — `~/.acquia/`
 if that directory already exists on your machine, otherwise `$XDG_CONFIG_HOME/acquia/` or
 `~/.config/acquia/` on a fresh install. Set `ACLI_HOME` to override this directory explicitly
