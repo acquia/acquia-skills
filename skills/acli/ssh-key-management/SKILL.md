@@ -195,7 +195,7 @@ acli ssh-key:delete --public-key "ab:cd:ef:12:34:56:78:90"
 
 ### SSH into your IDE
 
-Copy the SSH command from the IDE's details page in the Cloud Platform UI, and point it at your key:
+Replace the placeholders with your IDE's SSH user and host:
 
 ```bash
 ssh -i ~/.ssh/id_rsa <ide-ssh-user>@<ide-ssh-host>

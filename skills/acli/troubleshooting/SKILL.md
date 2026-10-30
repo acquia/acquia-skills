@@ -81,8 +81,8 @@ acli --version
 1. Try the other install option **once** (see [Getting Started](../getting-started/SKILL.md#installation)). Don't loop.
 2. Point tools at a CA bundle that includes the proxy's root CA (from IT):
    ```bash
-   export CURL_CA_BUNDLE=/path/to/corp-ca-bundle.pem
-   export SSL_CERT_FILE=/path/to/corp-ca-bundle.pem
+   export CURL_CA_BUNDLE=/path/to/corp-ca-bundle.pem   # curl downloads
+   export SSL_CERT_FILE=/path/to/corp-ca-bundle.pem    # native acli
    ```
 3. If the network blocks `github.com` / `release-assets.githubusercontent.com` outright, ask
    an admin to allow them.
@@ -325,10 +325,7 @@ Add to `~/.ssh/config`:
 ```
 Host <ide-ssh-host>
   IdentityFile ~/.ssh/my_custom_key
-  IdentitiesOnly yes
 ```
-
-Use the host from your IDE's SSH command in the Cloud Platform UI.
 
 ---
 

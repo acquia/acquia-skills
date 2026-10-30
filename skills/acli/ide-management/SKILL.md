@@ -91,8 +91,7 @@ Prompts you step-by-step:
 ? Creating your Cloud IDE...
 ✓ IDE created successfully!
 
-Your IDE URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.ides.acquia.com
-Your Drupal Site URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud
+Your IDE is ready at: https://feea197a-9503-4441-9f49-b4d420b0ecf8.ides.acquia.com
 ```
 
 ### Scripted (non-interactive)
@@ -197,7 +196,7 @@ acli ide:share
 Prints the share URL for your IDE:
 
 ```
-Your IDE Share URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud?share=<share-code>
+Share URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud?share=<share-code>
 ```
 
 ### Regenerate the share token

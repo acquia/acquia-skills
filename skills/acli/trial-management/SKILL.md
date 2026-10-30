@@ -1,17 +1,23 @@
 ---
 name: trial-management
-description: "Use when a user wants a free Acquia trial site: creating one, checking provisioning status, retrying a failed trial, or getting the live site URL / admin sign-in link."
+description: "Use when creating a trial Acquia Cloud site, checking trial provisioning status, retrying a failed trial, or finding the live URL / admin sign-in link for a trial site."
 license: Proprietary
 compatibility: acli>=4.3
 metadata:
     category: onboarding
     author: Acquia
-    version: "1.1.0"
+    version: "1.0.0"
     tags: "acli, acquia-cloud, trials, provisioning, drupal, onboarding"
     software_requirements: "acli>=4.3"
 ---
 
 # Trial Site Management
+
+Use when:
+- Creating a new trial Drupal site on Acquia Cloud
+- Checking whether a trial is still provisioning, has finished, or has failed
+- Getting the live site URL or admin sign-in link for a completed trial
+- Retrying a trial that failed to provision
 
 Trials use the v2 Cloud API (`acli api:*`), not MEO (`api:v3:*`). **One trial per account, ever** — a second create is rejected.
 
@@ -20,7 +26,7 @@ Trials use the v2 Cloud API (`acli api:*`), not MEO (`api:v3:*`). **One trial pe
 Follow these at every step:
 
 1. **Stop early, not late.** If a step fails in a way this skill marks as "stop", tell the user why and end the flow. Don't continue to later steps.
-2. **Call `api:trials:create` at most once.** Never retry it. The only retry is `api:trials:retry`, and only when `status` is `failed`.
+2. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. Any other failure: report it and stop. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 3. **Templates and regions are closed lists.** Offer only ids returned by the list commands. No "Other" option. Never send a value that isn't in the list, even if the user asks.
 4. **Don't change telemetry for the user.** Never run `telemetry:disable`.
 5. **Don't open or fetch `_links.admin.href`.** Give it to the user.
@@ -31,7 +37,7 @@ Follow these at every step:
 
 Check all of these before running install or sign-in. Tell the user about any that fail.
 
-- **Shell and network access.** If you can't run commands or reach the network (e.g. a chat-only mode, or sandbox networking disabled by an admin), **stop**: tell the user to switch to a terminal-capable agent such as Claude Code or Claude Cowork, or to sign up in the browser. Don't retry.
+- **Shell and network access.** If you can't run commands or reach the network (e.g. a chat-only mode, or sandbox networking disabled by an admin), **stop**: tell the user to switch to an agent or mode that can run terminal commands, or to sign up in the browser. Don't retry.
 - **Reachable hosts** (the user or an admin may need to allow these):
   - `github.com`, `release-assets.githubusercontent.com` (acli download)
   - `id.acquia.com` (sign-in)
@@ -50,7 +56,7 @@ Run this in the background so you can read its output while it waits:
 yes | acli auth:login
 ```
 
-`yes |` answers acli's prompts: the telemetry question (yes is the default) and, if an API key is already stored, "Sign in with device code instead?". Without it, `--no-interaction` picks the default `no` for that second question and exits with an error.
+`yes |` answers acli's prompts. On a first run acli asks whether to share anonymous usage data; `yes` is its default, so the user's default is kept (Rule 4). If an API key is already stored, it also answers "Sign in with device code instead?". Without `yes |`, `--no-interaction` picks the default `no` there and exits with an error.
 
 acli prints `https://id.acquia.com/activate` and an activation code. Tell the user:
 
@@ -60,6 +66,8 @@ The command blocks until the user approves. That's not a hang.
 
 - If the activate page shows an error for a valid code, ask the user to enter it once more.
 - If acli exits with `Code expired.` or `Authorization denied.`, run step 3 again.
+
+Only if the user wants to use an existing API key and secret instead of device code: `acli auth:login --use-legacy-auth` (or pass `--key`/`--secret`). See [Getting Started](../getting-started/SKILL.md).
 
 ### 4. Check identity and eligibility
 
@@ -129,14 +137,14 @@ Run it every ~10 seconds until `status` is `completed` or `failed`. While pendin
 
 - For the first ~40 seconds after create, an empty response or 404 means **still pending**, not failure.
 - If it's still not `completed` after 10 minutes, stop polling and tell the user the trial is still provisioning.
-- `failed`: offer `acli api:trials:retry <id>` (the trial's `id` field), then keep polling.
+- `failed`: offer `acli api:trials:retry <id>`. Use the trial's `id` field (it's also in `_links.retry.href`). Then keep polling.
 
 ### 8. Hand over
 
 When `status` is `completed`:
 
 - **Site:** `_links.site.href`. This is the trial's dev environment URL. Staging and prod environments exist too, but this is the site to open.
-- **Admin:** `_links.admin.href`. Signs the user into Drupal admin through their Acquia ID, with no separate password. The user opens it in the browser where they're signed in to Acquia.
+- **Admin:** `_links.admin.href`. Signs the user into the Drupal admin with no separate password. The user opens it in their browser.
 
 ## Errors
 
@@ -144,7 +152,7 @@ When `status` is `completed`:
 |---|---|---|
 | `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value and call create once more. |
 | `409` on create | The account already has a trial. | Run `find-trial` and follow the table in step 4. |
-| `already associated with an Acquia organization` on create | This identity isn't eligible. | **Stop.** The user can `acli auth:logout` and repeat from step 3 with a personal identity that has never had a trial. |
+| `already associated with an Acquia organization` on create | This identity isn't eligible. | **Stop** and tell the user. Only if they choose to try a different identity (one that has never had a trial): `acli auth:logout`, then repeat from step 3. |
 | `409` on retry | The trial isn't `failed`. | Run `find-trial` and follow step 4. |
 | `Deprecated: ...` lines before JSON | PHP 8.5 warnings from the PHAR build. | See [Troubleshooting](../troubleshooting/SKILL.md#deprecated-warnings-break-json-output). |
 
@@ -164,3 +172,4 @@ Only if the user asks for a local copy (e.g. with DDEV):
 
 - [Getting Started](../getting-started/SKILL.md): install and authentication details
 - [SSH Key Management](../ssh-key-management/SKILL.md), [Pull & Push](../pull-push/SKILL.md): local setup
+- [MEO Overview](../meo-overview/SKILL.md): for sites that later move to a full MEO/ACE subscription

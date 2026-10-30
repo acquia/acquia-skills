@@ -122,8 +122,8 @@ jobs:
       - name: Install acli
         run: |
           curl -fsSL https://github.com/acquia/cli/releases/latest/download/native-acli-linux-x86_64.tar.gz \
-            | sudo tar -xz -C /usr/local/bin acli
-          sudo chmod +x /usr/local/bin/acli
+            | tar -xz -C /usr/local/bin acli
+          chmod +x /usr/local/bin/acli
 
       - name: Deploy to production
         env:
