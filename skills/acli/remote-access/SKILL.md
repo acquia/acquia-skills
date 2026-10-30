@@ -16,6 +16,8 @@ metadata:
 
 > **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
 > For MEO (Multi-site Enterprise Operations), see [MEO Overview](../meo-overview/SKILL.md).
+>
+> **Trials:** trial sites are stricter than ACE environments — SSH is **Drush-only**. Interactive `ssh`, rsync, scp and sftp are all rejected; a denial there is expected, not an error to retry. Use the SSH key for `git clone` against the trial's git remote instead. See [Trial Management](../trial-management/SKILL.md#ssh-access-on-trials).
 
 Use when:
 - Opening an SSH shell on a Cloud environment

@@ -16,6 +16,8 @@ metadata:
 
 > **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
 > For MEO (Multi-site Enterprise Operations), see [MEO Site Instances](../meo-site-instances/SKILL.md) for database and file operations.
+>
+> **Trials:** trial SSH is **Drush-only**, so any pull path that needs rsync/scp/sftp (for example `acli pull:files`) fails on a trial. Use `git clone` for code, and pull the database with `--no-import` then import into the local stack (e.g. `ddev import-db`); pass `--no-files` where a command would otherwise try to sync files. See [Trial Management](../trial-management/SKILL.md#ssh-access-on-trials).
 
 Use when:
 - Syncing your local environment with a Cloud Platform environment
