@@ -213,7 +213,18 @@ acli push:files
 
 ### "Local database not found"
 
-`pull:all` and `pull:database` require a running local database. Make sure your local Drupal stack (Lando, DDEV, etc.) is running.
+`pull:all` and `pull:database` import with a local `mysql` client. With DDEV (`mysql` is inside
+the container), download only, then import through DDEV:
+
+```bash
+acli pull:database --no-import
+ddev import-db --file=<downloaded .sql.gz>
+```
+
+### `pull:files` fails on a trial site
+
+Trial SSH allows Drush only, so `pull:files` (and the files step of `pull:all` / `ddev pull`)
+fails. Use `--no-files`; the local site will have no uploaded images.
 
 ### "Access denied" on push
 
@@ -221,7 +232,7 @@ Verify your SSH key is set up and your account has write access to the environme
 
 ```bash
 acli ssh-key:list
-acli auth:me
+acli api:accounts:find
 ```
 
 ### Artifact push fails

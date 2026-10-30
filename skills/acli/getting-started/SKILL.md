@@ -48,44 +48,50 @@ If you're working on a MEO subscription, see **[MEO Overview](../meo-overview/SK
 
 ### macOS & Linux
 
-#### Option 1: Native Binary (Recommended)
+Install into `~/.local/bin` (no `sudo`). Downloads come from `github.com` and
+`release-assets.githubusercontent.com`.
 
-The native binary requires no PHP installation and works on any modern macOS or Linux system.
+**Which option:**
+1. PHP 8.2+ installed (`php --version`) → Option 2 (PHAR).
+2. Otherwise, Apple silicon Mac or Linux x86_64 → Option 1 (native).
+3. Otherwise (e.g. Intel Mac without PHP), there's no native build. Tell the user they need
+   PHP 8.2+ for the PHAR, and let them decide how to install it.
+4. If the download fails with a TLS/certificate error, try the other option **once**. If that
+   fails too, stop and see [TLS / certificate errors](../troubleshooting/SKILL.md#tls--certificate-errors-during-download).
+
+Don't install Homebrew just to get acli.
+
+#### Option 1: Native Binary (no PHP needed)
 
 ```bash
-# Download the latest release
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
-  -o /usr/local/bin/acli
-
-# Make it executable
-chmod +x /usr/local/bin/acli
-
-# Verify it works
+mkdir -p ~/.local/bin
+# Apple silicon Mac. On Linux x86_64 use native-acli-linux-x86_64.tar.gz
+curl -fsSL https://github.com/acquia/cli/releases/latest/download/native-acli-macos-aarch64.tar.gz \
+  | tar -xz -C ~/.local/bin acli
+chmod +x ~/.local/bin/acli
+export PATH="$HOME/.local/bin:$PATH"
 acli --version
 ```
 
-#### Option 2: PHP Archive (PHAR)
-
-If you prefer or already have PHP 8.2 installed:
+#### Option 2: PHP Archive (PHAR, needs PHP 8.2+)
 
 ```bash
+mkdir -p ~/.local/bin
 curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli.phar \
-  -o /usr/local/bin/acli.phar
-chmod +x /usr/local/bin/acli.phar
-
-# Use as:
-acli.phar --version
-# Or create an alias
-alias acli='acli.phar'
-```
-
-#### Using Homebrew (macOS)
-
-```bash
-brew tap acquia/cli
-brew install acli
+  -o ~/.local/bin/acli
+chmod +x ~/.local/bin/acli
+export PATH="$HOME/.local/bin:$PATH"
 acli --version
 ```
+
+Add the `export PATH=...` line to `~/.zshrc` / `~/.bashrc` to keep it across shells.
+
+#### Already have an older acli?
+
+Trial commands need 4.3+. If the old copy is root-owned (e.g. `/usr/local/bin/acli`), don't
+overwrite it or use `sudo`: install into `~/.local/bin` as above, put it first on `PATH`, and
+check that `command -v acli` prints `~/.local/bin/acli`. A user-writable install can run
+`acli self:update` instead.
 
 ---
 
@@ -102,7 +108,10 @@ What happens depends on what's already on your machine:
   sign-in there. Your organization's SSO/MFA policy applies, same as signing in anywhere else.
   No key or secret to copy-paste.
 - **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
-  device code instead. Say no to keep using the existing key.
+  device code instead (default: no). Say no to keep using the existing key. With
+  `--no-interaction` it takes the `no` and then fails asking for a key and secret. To get
+  device code without a terminal, use `yes | acli auth:login` (it also answers the
+  first-run telemetry question with its default, yes).
 - **A device code session already active** — ACLI reports you're already signed in and asks
   whether to re-authenticate. Say no to leave the existing session alone and exit immediately.
 - **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
@@ -129,7 +138,7 @@ deactivating it.
 ### Verify Authentication
 
 ```bash
-acli auth:me
+acli api:accounts:find
 ```
 
 Shows your name, email, and account information.
@@ -265,7 +274,7 @@ Run `acli app:link` in your project directory to associate it with a Cloud appli
 
 ```bash
 acli auth:login
-acli auth:me
+acli api:accounts:find
 ```
 
 ### Step 2: Set Up a Project
@@ -327,7 +336,7 @@ You don't have permission to access that application or resource. Check:
 - Are you logged in with the right Acquia account?
 - Do you have permissions in Acquia Cloud UI?
 
-Run `acli auth:me` to verify you're using the right account.
+Run `acli api:accounts:find` to verify you're using the right account.
 
 ### Need more help?
 
@@ -374,7 +383,8 @@ Aliases: `acli cc`, `acli cr`
 
 ## Telemetry
 
-acli collects anonymous usage data by default to help improve the tool. To opt out:
+acli collects anonymous usage data by default. Agents must not disable it on the user's
+behalf; only the user decides. To opt out:
 
 ```bash
 acli self:telemetry:disable

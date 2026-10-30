@@ -104,6 +104,27 @@ acli ssh-key:upload
 
 Prompts you to select the key file and enter a label.
 
+### Key requirements
+
+- **RSA only.** ED25519 keys are rejected. Create one with
+  `ssh-keygen -t rsa -b 4096 -f ~/.ssh/acquia_rsa -N ""`.
+- **One Acquia account per key.** A key registered to another account fails with
+  "Key already in use". Create a separate key.
+- **`--no-interaction` upload may print "Could not determine Cloud Application" even though the
+  key was uploaded.** Check `acli ssh-key:list` before retrying; a retry fails on the duplicate label.
+
+### Wait for the key to work before cloning
+
+A new key can be rejected by the git host for several minutes (~4 observed). Before the
+first `git clone`, test every ~20 seconds, for up to 8 minutes:
+
+```bash
+ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new <sitegroup>@<git host>
+```
+
+Use the user and host from the application's git URL (`acli api:applications:find` →
+`vcs.url`).
+
 ### Skip waiting for propagation
 
 By default, acli waits for the key to propagate to all servers. Skip this with:
@@ -174,11 +195,10 @@ acli ssh-key:delete --public-key "ab:cd:ef:12:34:56:78:90"
 
 ### SSH into your IDE
 
-Once you have an SSH key set up, you can connect to your IDE:
+Copy the SSH command from the IDE's details page in the Cloud Platform UI, and point it at your key:
 
 ```bash
-# Note: Use the IDE ides-hostname, not the web URL
-ssh -i ~/.ssh/id_rsa user@ide-12345.ides.acquia.com
+ssh -i ~/.ssh/id_rsa <ide-ssh-user>@<ide-ssh-host>
 ```
 
 ### Set up git over SSH in your IDE
