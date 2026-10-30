@@ -50,7 +50,7 @@ source ~/.bashrc
 **Solution:**
 
 ```bash
-chmod +x /usr/local/bin/acli
+chmod +x "$(command -v acli)"
 acli --version
 ```
 
@@ -60,19 +60,69 @@ acli --version
 
 **Solution:**
 
-```bash
-# Reinstall
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
-  -o /usr/local/bin/acli
-chmod +x /usr/local/bin/acli
+Reinstall per [Getting Started](../getting-started/SKILL.md#installation), then check which
+copy your shell resolves:
 
-# Verify
+```bash
+command -v acli
 acli --version
 ```
 
 ---
 
+### TLS / certificate errors during download
+
+**Symptoms:** `curl` or acli fails with a certificate/SSL error.
+
+**Cause:** Usually a corporate proxy that intercepts TLS (e.g. Zscaler) with its own root CA.
+
+**Solutions:**
+
+1. Try the other install option **once** (see [Getting Started](../getting-started/SKILL.md#installation)). Don't loop.
+2. Point tools at a CA bundle that includes the proxy's root CA (from IT):
+   ```bash
+   export CURL_CA_BUNDLE=/path/to/corp-ca-bundle.pem   # curl downloads
+   export SSL_CERT_FILE=/path/to/corp-ca-bundle.pem    # native acli
+   ```
+3. If the network blocks `github.com` / `release-assets.githubusercontent.com` outright, ask
+   an admin to allow them.
+
+### "Deprecated: ..." warnings break JSON output
+<a id="deprecated-warnings-break-json-output"></a>
+
+**Symptoms:** Lines starting `Deprecated:` appear before acli's JSON, so parsing fails. Seen
+with the PHAR on PHP 8.5.
+
+**Solutions:**
+
+- Use the native binary (see [Getting Started](../getting-started/SKILL.md#installation)).
+- Or hide deprecation notices when running the PHAR:
+  ```bash
+  php -d error_reporting='E_ALL & ~E_DEPRECATED' -d display_errors=stderr "$(command -v acli)" <command>
+  ```
+- When parsing, read stdout only and skip anything before the first `{` or `[`.
+
+---
+
 ## Authentication Issues
+
+### `auth:login --no-interaction` fails asking for an API key
+
+**Symptoms:** `Already authenticated as ... (API key)`, then
+`Enter your Cloud Platform API key (option -k, --key)` and a non-zero exit.
+
+**Cause:** An API key is already stored. acli asks `Sign in with device code instead?` with a
+default of `no`; `--no-interaction` takes that default and falls through to the key prompt.
+
+**Solution:** answer the prompts on stdin to start device code sign-in:
+
+```bash
+yes | acli auth:login
+```
+
+Use `yes`, not `printf 'yes\n'`: on a first run acli asks about telemetry before the
+device-code question, and a single answer is used up there. Then run
+`acli api:accounts:find` to confirm the active identity is the one you expect.
 
 ### "Error: Failed to authenticate"
 
@@ -107,7 +157,7 @@ acli auth:login
 
 1. **Check you're logged in with the right account:**
    ```bash
-   acli auth:me
+   acli api:accounts:find
    ```
 
 2. **Verify you have access in Acquia Cloud UI:**
@@ -273,7 +323,7 @@ acli ide:create
 Add to `~/.ssh/config`:
 
 ```
-Host ide-*.ides.acquia.com
+Host <ide-ssh-host>
   IdentityFile ~/.ssh/my_custom_key
 ```
 
@@ -289,7 +339,7 @@ Host ide-*.ides.acquia.com
 
 1. **Check if you're in a team:**
    ```bash
-   acli auth:me
+   acli api:accounts:find
    ```
 
 2. **Ask your team admin** to add you to an application
@@ -429,7 +479,7 @@ acli <command> --help
 acli --version
 
 # Your account info
-acli auth:me
+acli api:accounts:find
 
 # Your applications (ACE / V2). On MEO (V3), use: acli api:v3:sites:list
 acli api:applications:list
@@ -492,7 +542,7 @@ acli auth:login
 ## Best Practices
 
 1. **Stay updated** — Run `acli self:update` regularly; many errors are fixed in newer versions.
-2. **Check authentication first** — Run `acli auth:me` before blaming other commands.
+2. **Check authentication first** — Run `acli api:accounts:find` before blaming other commands.
 3. **Use verbose mode** — Add `-vvv` to any failing command to see detailed error output.
 
 ---

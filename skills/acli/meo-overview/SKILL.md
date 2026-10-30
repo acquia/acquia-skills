@@ -67,7 +67,7 @@ MEO uses the same Acquia Cloud credentials as ACE:
 
 ```bash
 acli auth:login
-acli auth:me
+acli api:accounts:find
 ```
 
 No separate login is needed. The `api:v3:*` commands automatically use the V3 API endpoint (`https://api.acquia.com/v3`).
