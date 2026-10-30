@@ -100,6 +100,9 @@ acli api:trials:create mytrialsite umami us-east-1
 1. Run `api:account:find-trial` first. If it returns an existing trial (any status other than a 404), do not call `api:trials:create` again — the API returns **409 Conflict** for a second active trial. Report the existing trial's status instead.
 2. Resolve `site_template_id` and `region` via the list commands below rather than guessing or hardcoding a value — available templates and regions change over time. Both are **closed lists**: never send a template ID or region that did not come from `api:trials:list-templates` / `api:trials:list-regions`, even if the user names one that is not listed — tell them what is available instead. Validate all three arguments against the lists before any API call.
 3. If the user's requested name doesn't fit the `site_name` pattern above, propose a sanitized version (e.g. lowercased, hyphens/spaces stripped) and confirm it with the user before calling this.
+4. Put the site name, template and region in **one message** and get a single explicit go-ahead. "Use defaults", or values the user already gave, count. This confirmation is required even though the user already signed in: creating a trial is an action on their real account and is approved separately from authenticating.
+
+On an invalid site name or unsupported region (**400**), fix the value, re-confirm with the user if it differs from what they approved, and retry once.
 
 On success (`202`), the response is a message + `_links.self` pointing at the new trial resource — **not** the full `Trial` object. Poll `api:account:find-trial` afterward to track provisioning and eventually get the site URL. **Don't rely on `--task-wait`** — trials responses have no `_links.notification`, so ACLI prints the response, warns that there is no task to wait for, and exits successfully without waiting. Poll `api:account:find-trial` instead.
 
@@ -120,7 +123,7 @@ Only call this when `api:account:find-trial` shows `status: failed` — the API 
 acli api:trials:retry c3d4e5f6-a7b8-9012-cdef-123456789012
 ```
 
-After retrying, the trial goes back to `in-progress` — continue polling `api:account:find-trial`.
+After retrying, the trial goes back to `in-progress` — continue polling `api:account:find-trial`. Retry **once** only: if it fails again, relay the failure reason to the user instead of retrying further.
 
 ---
 
@@ -175,7 +178,7 @@ acli api:trials:create mytrialsite umami us-east-1
 acli api:account:find-trial
 ```
 
-Once `status: completed`, read `_links.site.href` for the live URL and `_links.admin.href` to sign the user in.
+Once `status: completed` (typically a couple of minutes), read `_links.site.href` for the live URL and `_links.admin.href` to sign the user in. Then ask what the user wants next (open the site, work locally, or start building) rather than following a fixed script.
 
 ---
 
@@ -214,8 +217,10 @@ acli auth:login
 With no credentials stored, this now defaults to **device code sign-in** — no API key needed:
 
 1. ACLI prints a verification URL and a short user code, and opens the URL in a browser if one is available locally.
-2. The developer opens that URL (any device/browser), signs in with their Acquia ID, and confirms the code.
+2. The developer opens that URL (any device/browser), signs in with Google or the email form, confirms the code, and accepts the trial agreement and acceptable use policy shown on that same page.
 3. ACLI polls in the background and stores the resulting token once approved.
+
+That click signs the developer in and records their acceptance of the trial terms. It is **not** approval of a specific trial: no site name, region or template has been decided yet (see step 4 under [Create a Trial](#create-a-trial)). An existing password-based Acquia ID cannot sign in with Google; the page shows a message to use username and password instead. Relay it and do not retry Google. If the developer declines the terms, the command returns a result to relay and no trial is created.
 
 For an agent driving this: the command blocks on user action in another browser tab, so surface the printed URL/code to the user and wait — don't treat the blocking as a hang. Declining or letting the code expire (10 minutes) makes the command exit with an error ("Authorization denied." / "Code expired.") rather than hanging silently — see [Troubleshooting](../troubleshooting/SKILL.md#device-code-sign-in-fails) for these and the "Acquia ID may already exist" failure.
 
