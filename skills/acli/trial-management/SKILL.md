@@ -28,7 +28,7 @@ Follow these at every step:
 1. **Stop early, not late.** If a step fails in a way this skill marks as "stop", tell the user why and end the flow. Don't continue to later steps.
 2. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. Any other failure: report it and stop. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 3. **Templates and regions are closed lists.** Offer only ids returned by the list commands. No "Other" option. Never send a value that isn't in the list, even if the user asks.
-4. **Don't change telemetry for the user.** Never run `telemetry:disable`.
+4. **Telemetry is the user's choice.** Export `ACLI_NO_TELEMETRY=true` and pass `-n` on every command. Ask the user the telemetry question in the step 5 confirmation message. If the flow stops before step 5 (sign-in failure, ineligible account, existing or stuck trial), put it in the message that tells the user the flow has stopped. If they don't answer, leave telemetry off. Act on their answer (see [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry)).
 5. **Don't open or fetch `_links.admin.href`.** Give it to the user.
 
 ## Procedure
@@ -53,10 +53,11 @@ Run `acli --version`. If acli is missing, or `acli list api:trials` shows no com
 Run this in the background so you can read its output while it waits:
 
 ```bash
-yes | acli auth:login
+acli auth:logout -n   # only if credentials are active; with none it exits 1 with "There are no active Cloud Platform credentials": continue
+acli auth:login -n
 ```
 
-`yes |` answers acli's prompts. On a first run acli asks whether to share anonymous usage data; `yes` is its default, so the user's default is kept (Rule 4). If an API key is already stored, it also answers "Sign in with device code instead?". Without `yes |`, `--no-interaction` picks the default `no` there and exits with an error.
+With nothing stored, `auth:login -n` goes straight to device code and never asks the telemetry question (Rule 4). On failure it prints the error once and exits 1, with no fallback prompt and no browser. Don't pipe `yes` into it: it loops forever on the API key prompts if device code fails. `auth:logout -n` deactivates a stored API key but keeps it on disk.
 
 acli prints `https://id.acquia.com/activate` and an activation code. Tell the user:
 
@@ -118,7 +119,7 @@ Each item has `id` (pass to create) and `name`.
 - One region: use it without asking, and tell the user ("Your site will be in US East (N. Virginia).").
 - Several regions: show them as a numbered list and wait for the user to choose.
 
-**Validate and confirm.** Check all three values against the lists (template and region) and the name pattern. Then put the site name, template, and region in **one message** and get a single explicit go-ahead. "Use defaults", or values the user already gave, count. This is required even though the user already signed in: creating a trial acts on their real account and is approved separately from authenticating.
+**Validate and confirm.** Check all three values against the lists (template and region) and the name pattern. Then put the site name, template, and region in **one message**, together with the telemetry question from Rule 4 ("Would you like to share usage and performance data with Acquia to help improve acli? (yes/no)"), and get a single explicit go-ahead. Run `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n` on their answer. "Use defaults", or values the user already gave, count. This is required even though the user already signed in: creating a trial acts on their real account and is approved separately from authenticating.
 
 ### 6. Create
 

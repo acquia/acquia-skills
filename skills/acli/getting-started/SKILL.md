@@ -51,15 +51,36 @@ If you're working on a MEO subscription, see **[MEO Overview](../meo-overview/SK
 Install into `~/.local/bin` (no `sudo`). Downloads come from `github.com` and
 `release-assets.githubusercontent.com`.
 
+**Before installing:** run `command -v acli && acli --version`. The Atlassian CLI is also
+named `acli`. If the output is not `Acquia CLI`, don't overwrite or shadow it: install Acquia
+CLI to `~/.local/bin/acli` and call it by its full path (or `php /path/to/acli.phar`) for the
+rest of the session.
+
 **Which option:**
-1. PHP 8.2+ installed (`php --version`) → Option 2 (PHAR).
+1. PHP 8.2+ with the curl, json and openssl extensions (`php --version`) → Option 2 (PHAR).
 2. Otherwise, Apple silicon Mac or Linux x86_64 → Option 1 (native).
 3. Otherwise (e.g. Intel Mac without PHP), there's no native build. Tell the user they need
    PHP 8.2+ for the PHAR, and let them decide how to install it.
-4. If the download fails with a TLS/certificate error, try the other option **once**. If that
-   fails too, stop and see [TLS / certificate errors](../troubleshooting/SKILL.md#tls--certificate-errors-during-download).
+4. If the download or the first `acli` command fails with a TLS/certificate error (such as
+   `unable to get local issuer certificate`), a corporate proxy is intercepting HTTPS. Switch to
+   the other option **once**. If that fails too, **stop** and tell the user their network's TLS
+   inspection is blocking the download. Don't try CA bundle or `.ini` overrides yourself. See
+   [TLS / certificate errors](../troubleshooting/SKILL.md#tls--certificate-errors-during-download).
 
 Don't install Homebrew just to get acli.
+
+**Verify before running.** Download `SHA256SUMS` from the same release and check the file you
+downloaded. Don't run a file that fails the check. This is mandatory when an agent, not a
+person, does the install.
+
+```bash
+shasum -a 256 --check --ignore-missing SHA256SUMS    # macOS
+sha256sum --check --ignore-missing SHA256SUMS        # Linux
+```
+
+Download to a file first, check it, then `chmod +x` and move it into place. The Option 1 pipe
+below is for a person installing by hand; an agent saves the archive, verifies it, then
+extracts it.
 
 #### Option 1: Native Binary (no PHP needed)
 
@@ -110,8 +131,10 @@ What happens depends on what's already on your machine:
 - **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
   device code instead (default: no). Say no to keep using the existing key. With
   `--no-interaction` it takes the `no` and then fails asking for a key and secret. To get
-  device code without a terminal, use `yes | acli auth:login` (it also answers the
-  first-run telemetry question with its default, yes).
+  device code without a terminal, log out first, then log in (see
+  [Agents and scripts](#agents-and-scripts)). Don't pipe `yes` into `acli auth:login`: if
+  device code fails it answers the API key fallback prompts too, loops forever on
+  `Value "y" is invalid`, and can open a browser on the user's machine.
 - **A device code session already active** — ACLI reports you're already signed in and asks
   whether to re-authenticate. Say no to leave the existing session alone and exit immediately.
 - **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
@@ -124,6 +147,22 @@ if that directory already exists on your machine, otherwise `$XDG_CONFIG_HOME/ac
 (useful if both exist and you need to pick one). A device code session refreshes itself
 silently in the background while you're using acli regularly; if you haven't run acli in a
 while and a command reports your session has expired, just run `acli auth:login` again.
+
+### Agents and scripts
+
+- Pass `-n` (`--no-interaction`) on every `acli` command so nothing blocks on a prompt.
+- `acli api:*` commands print JSON on stdout; `-n` doesn't change that. Other commands print
+  human-formatted output. Read stdout only, and skip anything before the first `{` or `[`.
+- To start device code sign-in when credentials are already stored:
+
+  ```bash
+  acli auth:logout -n   # exits 1 with "There are no active Cloud Platform credentials" if none: continue
+  acli auth:login -n    # run in the background; read the activation URL and code from its output
+  ```
+
+  With nothing active, `auth:login -n` goes straight to device code. On failure it prints the
+  error once and exits 1, with no fallback prompt and no browser. `auth:logout -n` deactivates
+  an API key but keeps it on disk (`--use-legacy-auth` brings it back).
 
 ### Log Out
 
@@ -383,8 +422,7 @@ Aliases: `acli cc`, `acli cr`
 
 ## Telemetry
 
-acli collects anonymous usage data by default. Agents must not disable it on the user's
-behalf; only the user decides. To opt out:
+acli collects anonymous usage data by default. Only the user decides. To opt out:
 
 ```bash
 acli self:telemetry:disable
@@ -403,6 +441,30 @@ acli self:telemetry:toggle
 ```
 
 Alias: `acli telemetry`
+
+Setting `ACLI_NO_TELEMETRY=true` in the environment skips both the first-run question and
+telemetry itself.
+
+### Agents and scripts (telemetry)
+
+Export `ACLI_NO_TELEMETRY=true` for the run and pass `-n` on every command. Without a terminal
+and without that variable, acli can record the default answer (yes) for the user without
+asking. With them, acli asks nothing and telemetry stays off until the user chooses.
+
+- Ask the user as a direct question in the conversation, never as a mention or an instruction
+  to run a command: "Would you like to share usage and performance data with Acquia to help
+  improve acli? (yes/no)". When the flow already stops for the user to confirm other choices
+  (for a trial: site name, template and region), add this as one more item in that same
+  message. Otherwise ask it before you finish setup, even if sign-in could not complete.
+- When they answer, run the matching command yourself:
+
+  ```bash
+  acli self:telemetry:enable --no-interaction
+  acli self:telemetry:disable --no-interaction
+  ```
+
+- If they don't answer, leave telemetry off and tell them they'll be asked the next time they
+  run acli themselves.
 
 ---
 

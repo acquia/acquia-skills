@@ -78,12 +78,12 @@ acli --version
 
 **Solutions:**
 
-1. Try the other install option **once** (see [Getting Started](../getting-started/SKILL.md#installation)). Don't loop.
-2. Point tools at a CA bundle that includes the proxy's root CA (from IT):
-   ```bash
-   export CURL_CA_BUNDLE=/path/to/corp-ca-bundle.pem   # curl downloads
-   export SSL_CERT_FILE=/path/to/corp-ca-bundle.pem    # native acli
-   ```
+1. Switch to the other install option **once** (see [Getting Started](../getting-started/SKILL.md#installation)). Don't loop.
+2. If that fails too, **stop** and tell the user their network's TLS inspection is blocking the
+   download. Don't try CA bundle or `.ini` overrides yourself.
+   *For the user:* a CA bundle that includes the proxy's root CA (from IT) fixes this:
+   `export CURL_CA_BUNDLE=/path/to/corp-ca-bundle.pem` (curl downloads) and
+   `export SSL_CERT_FILE=/path/to/corp-ca-bundle.pem` (native acli).
 3. If the network blocks `github.com` / `release-assets.githubusercontent.com` outright, ask
    an admin to allow them.
 
@@ -114,15 +114,18 @@ with the PHAR on PHP 8.5.
 **Cause:** An API key is already stored. acli asks `Sign in with device code instead?` with a
 default of `no`; `--no-interaction` takes that default and falls through to the key prompt.
 
-**Solution:** answer the prompts on stdin to start device code sign-in:
+**Solution:** log out, then log in. Neither command prompts:
 
 ```bash
-yes | acli auth:login
+acli auth:logout -n   # exits 1 with "There are no active Cloud Platform credentials" if none: continue
+acli auth:login -n    # run in the background; read the activation URL and code
 ```
 
-Use `yes`, not `printf 'yes\n'`: on a first run acli asks about telemetry before the
-device-code question, and a single answer is used up there. Then run
-`acli api:accounts:find` to confirm the active identity is the one you expect.
+Don't pipe `yes` into `auth:login`: if device code fails, it answers the API key fallback
+prompts as well and loops forever on `Value "y" is invalid`, and it can open a browser on the
+user's machine. `auth:logout -n` deactivates the API key but keeps it on disk
+(`--use-legacy-auth` brings it back). Then run `acli api:accounts:find` to confirm the active
+identity is the one you expect.
 
 ### "Error: Failed to authenticate"
 
