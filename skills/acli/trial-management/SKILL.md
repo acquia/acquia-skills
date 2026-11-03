@@ -67,6 +67,8 @@ The command blocks until the user approves. That's not a hang.
 - If the activate page shows an error for a valid code, ask the user to enter it once more.
 - If acli exits with `Code expired.` or `Authorization denied.`, run step 3 again.
 
+The activate page also asks the user to accept the trial agreement and acceptable use policy. That click signs them in and records their acceptance of the terms. It is **not** approval to create a specific trial (see step 5). If the user declines the terms, relay the result and don't create a trial. An existing password-based Acquia ID can't sign in with Google; the page says to use username and password. Relay that and don't retry Google. For other sign-in failures see [Troubleshooting](../troubleshooting/SKILL.md#device-code-sign-in-fails).
+
 Only if the user wants to use an existing API key and secret instead of device code: `acli auth:login --use-legacy-auth` (or pass `--key`/`--secret`). See [Getting Started](../getting-started/SKILL.md).
 
 ### 4. Check identity and eligibility
@@ -86,7 +88,7 @@ acli api:account:find-trial # that identity's trial
 |---|---|
 | `status: completed` | Their trial exists. Give `_links.site.href` and `_links.admin.href`. |
 | `status: failed` | It failed. Offer to retry: `acli api:trials:retry <id>`, then go to step 7. |
-| `status: pending` with empty `site_name` or `region` | It's stuck from an earlier failed attempt, and a new trial can't be created on this account. Point them to Acquia support or sales. Don't create or retry. |
+| `status: pending` with empty `site_name` or `region` | It's stuck from an earlier failed attempt, and a new trial can't be created on this account. Report the trial `id` and point them to Acquia support or sales to clear the record. Don't create or retry (`api:trials:retry` is for `failed` trials only). |
 | `status: pending` / `in-progress` otherwise | It's still provisioning. Go to step 7. |
 
 ### 5. Choose site name, template, and region
@@ -116,6 +118,8 @@ Each item has `id` (pass to create) and `name`.
 - One region: use it without asking, and tell the user ("Your site will be in US East (N. Virginia).").
 - Several regions: show them as a numbered list and wait for the user to choose.
 
+**Validate and confirm.** Check all three values against the lists (template and region) and the name pattern. Then put the site name, template, and region in **one message** and get a single explicit go-ahead. "Use defaults", or values the user already gave, count. This is required even though the user already signed in: creating a trial acts on their real account and is approved separately from authenticating.
+
 ### 6. Create
 
 ```bash
@@ -137,28 +141,34 @@ Run it every ~10 seconds until `status` is `completed` or `failed`. While pendin
 
 - For the first ~40 seconds after create, an empty response or 404 means **still pending**, not failure.
 - If it's still not `completed` after 10 minutes, stop polling and tell the user the trial is still provisioning.
-- `failed`: offer `acli api:trials:retry <id>`. Use the trial's `id` field (it's also in `_links.retry.href`). Then keep polling.
+- `failed`: offer `acli api:trials:retry <id>`. Use the trial's `id` field (it's also in `_links.retry.href`). Then keep polling. Retry **once** only; if it fails again, relay the failure reason to the user instead of retrying further.
 
 ### 8. Hand over
 
 When `status` is `completed`:
 
 - **Site:** `_links.site.href`. This is the trial's dev environment URL. Staging and prod environments exist too, but this is the site to open.
-- **Admin:** `_links.admin.href`. Signs the user into the Drupal admin with no separate password. The user opens it in their browser.
+- **Admin:** `_links.admin.href`. A one-time, expiring link that signs the user into the Drupal admin with no separate password. The user opens it in their browser. Report it verbatim and never fetch, open, or test it yourself.
+- **`_links.self` is not the site.** It's the trial's API record URL. Don't give it to the user as the site link.
+- Both links exist only when `status` is `completed`. While pending, report `percent_complete` and keep polling.
+
+Then ask what the user wants next (open the site, work locally, or start building) rather than following a fixed script.
 
 ## Errors
 
 | Error | Meaning | Do |
 |---|---|---|
-| `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value and call create once more. |
+| `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value, re-confirm with the user if it differs from what they approved, and call create once more. |
 | `409` on create | The account already has a trial. | Run `find-trial` and follow the table in step 4. |
-| `already associated with an Acquia organization` on create | This identity isn't eligible. | **Stop** and tell the user. Only if they choose to try a different identity (one that has never had a trial): `acli auth:logout`, then repeat from step 3. |
+| `403` / `already associated with an Acquia organization` on create | This identity isn't eligible. | **Stop** and tell the user. Don't retry create or re-run `auth:login` on your own. Only if they choose to try a different identity (one that has never had a trial): `acli auth:logout`, then repeat from step 3. |
 | `409` on retry | The trial isn't `failed`. | Run `find-trial` and follow step 4. |
 | `Deprecated: ...` lines before JSON | PHP 8.5 warnings from the PHAR build. | See [Troubleshooting](../troubleshooting/SKILL.md#deprecated-warnings-break-json-output). |
 
 There's no CLI command to get a trial by id. Always use `api:account:find-trial`.
 
 ## Work on the Trial Locally
+
+Trial SSH is stricter than a regular Cloud environment: **Drush over SSH only**. Interactive shells, rsync, scp, and sftp are rejected. That's expected, not an error to retry. Don't test an SSH key with plain `ssh` against the trial; use it for `git clone` only.
 
 Only if the user asks for a local copy (e.g. with DDEV):
 
