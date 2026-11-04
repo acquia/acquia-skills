@@ -28,7 +28,7 @@ Follow these at every step:
 1. **Stop early, not late.** If a step fails in a way this skill marks as "stop", tell the user why and end the flow. Don't continue to later steps.
 2. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. Any other failure: report it and stop. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 3. **Templates and regions are closed lists.** Offer only ids returned by the list commands. No "Other" option. Never send a value that isn't in the list, even if the user asks.
-4. **Three questions, as options.** The whole flow asks the user three questions: Q1 before installing (step 1), Q2 before creating (step 5), Q3 after hand-over (step 8). Ask nothing else unless a step says so. Use your harness's multiple-choice question tool if it has one, recommended option first; otherwise a numbered list answerable by number. Never ask the user to type a value, except a new site name when they choose to change it.
+4. **Three questions, as options.** The whole flow asks the user three questions: Q1 before installing (step 1), Q2 before creating (step 5), Q3 after hand-over (step 8). Ask nothing else unless a step says so. Use your harness's multiple-choice question tool if it has one; otherwise a numbered list answerable by number. Never ask the user to type a value, except a new site name when they choose to change it. The user picks one option, so the recommended option comes first and includes everything recommended; each other option leaves one thing out. Write questions in plain words for someone who has never used a terminal: no command names, paths, flags or tool names.
 5. **Telemetry is the user's choice, asked in Q1.** Export `ACLI_NO_TELEMETRY=true` for every command, so acli never asks or records a default for the user, and record the Q1 answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n` (see [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry)).
 6. **Don't open or fetch `_links.admin.href`.** Give it to the user.
 
@@ -45,10 +45,12 @@ Check all of these before running install or sign-in. Tell the user about any th
   - `cloud.acquia.com` (Cloud API)
 - **Eligible identity.** The user must sign in with an identity that has never had a trial. A work email already in an Acquia organization is rejected at create time.
 
-Then ask **Q1**, one question whose text gives the plan (install acli, one browser sign-in, one proposal to approve) and the eligible-identity rule above. Options:
+Before Q1, find out what's installed: a usable acli (`acli --version` prints `Acquia CLI` 4.3+ and `acli list api:trials` lists the commands; check `~/.local/bin/acli` first) and Acquia Skills (`npx skills list -g`). Mention setting up tools in Q1 only if something is missing.
 
-1. **Go ahead (Recommended):** install acli (and Acquia Skills, if not installed), usage data off.
-2. **Go ahead and share usage data:** the same, with acli telemetry on.
+Then ask **Q1** in plain words: "Here's how this works: I'll set up the tools this needs on your computer (only if missing), you sign in to Acquia once in your browser, and you approve the site I suggest. Use a personal email that hasn't had an Acquia trial before; work emails that already belong to a company's Acquia account won't work." Options:
+
+1. **Start my trial (Recommended):** set up what's missing and share anonymous usage data with Acquia.
+2. **Start without sharing usage data.**
 3. **Use the browser instead:** give https://www.acquia.com/products/acquia-cloud-platform/trial and end the flow.
 
 Q1 is the consent for every install in the flow. Don't ask again in step 2.
@@ -175,7 +177,7 @@ When `status` is `completed`:
 - **`_links.self` is not the site.** It's the trial's API record URL. Don't give it to the user as the site link.
 - Both links exist only when `status` is `completed`. While pending, report `percent_complete` and keep polling.
 
-Then ask **Q3**, "What next?", with options: **Open the site** (you open nothing), **Work on it locally** (say that it uploads an SSH key and sets up DDEV; choosing it is the consent for both), **Start building**, **Done**.
+Then ask **Q3**, "What next?", with options: **Open my site** (you open nothing), **Copy it to my computer** (in plain words: "I'll connect your computer to your Acquia account and set up a local copy"; choosing it is the consent to upload an SSH key and set up DDEV), **Start building**, **I'm done**.
 
 ## Errors
 
