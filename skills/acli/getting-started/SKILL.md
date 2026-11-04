@@ -459,7 +459,7 @@ asking. With them, acli asks nothing and telemetry stays off until the user choo
 - Don't spend a separate question on it. Fold it into the first question the flow already
   asks, as options rather than free text: for an install, the consent to install (options
   "Go ahead and share usage data (Recommended)" / "Go ahead without sharing"); for a trial,
-  Q1 in [Trial Management](../trial-management/SKILL.md). Never present it as a mention or an
+  the first question of the [trial runbook](https://dev.acquia.com/agents/cloud-platform-trial.md). Never present it as a mention or an
   instruction to run a command.
 - When they answer, run the matching command yourself:
 

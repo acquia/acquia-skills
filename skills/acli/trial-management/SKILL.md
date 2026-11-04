@@ -19,191 +19,133 @@ Use when:
 - Getting the live site URL or admin sign-in link for a completed trial
 - Retrying a trial that failed to provision
 
-Trials use the v2 Cloud API (`acli api:*`), not MEO (`api:v3:*`). **One trial per account, ever** — a second create is rejected.
+Trials use the v2 Cloud API (`acli api:*`), not MEO (`api:v3:*`). **One trial per account, ever**: a second create is rejected.
+
+## Taking a user through a trial
+
+To start a trial for a user end to end, fetch and follow the runbook:
+
+**https://dev.acquia.com/agents/cloud-platform-trial.md**
+
+It holds the order of the steps, the three questions to ask the user (and their exact wording), and the message for every point where the flow stops. This skill is the command reference behind it: what each command does, what its output means, and why each workaround exists. Where the two differ on order, questions or what to tell the user, follow the runbook.
+
+If you cannot fetch it, keep to its shape: one question before you install anything (covering installs and usage data), one before you create the trial (site name, template, region and the signed-in account), and one after hand-over. Ask each as options, recommended first.
 
 ## Rules
 
-Follow these at every step:
+1. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
+2. **Templates and regions are closed lists.** Send only ids returned by the list commands, even if the user asks for another value.
+3. **Telemetry is the user's choice.** Export `ACLI_NO_TELEMETRY=true` for every command, so acli never asks or records a default for the user. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
+4. **Don't open or fetch `_links.admin.href`.** It signs the holder into the site. Give it to the user.
 
-1. **Stop early, not late.** If a step fails in a way this skill marks as "stop", tell the user why and end the flow. Don't continue to later steps.
-2. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. Any other failure: report it and stop. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
-3. **Templates and regions are closed lists.** Offer only ids returned by the list commands. No "Other" option. Never send a value that isn't in the list, even if the user asks.
-4. **Three questions, as options.** The whole flow asks the user three questions: Q1 before installing (step 1), Q2 before creating (step 5), Q3 after hand-over (step 8). Ask nothing else unless a step says so. Use your harness's multiple-choice question tool if it has one; otherwise a numbered list answerable by number. Never ask the user to type a value, except a new site name when they choose to change it. The user picks one option, so the recommended option comes first and includes everything recommended; each other option leaves one thing out. Write questions in plain words for someone who has never used a terminal: no commands, paths or flags (Acquia CLI and Acquia Skills may be named).
-5. **Telemetry is the user's choice, asked in Q1.** Export `ACLI_NO_TELEMETRY=true` for every command, so acli never asks or records a default for the user, and record the Q1 answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n` (see [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry)).
-6. **Don't open or fetch `_links.admin.href`.** Give it to the user.
+## Commands
 
-## Procedure
+### Install acli 4.3+
 
-### 1. Pre-flight
+A copy is usable when `acli --version` prints `Acquia CLI` 4.3 or later and `acli list api:trials` lists the trial commands. Check `~/.local/bin/acli` before the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
 
-Check all of these before running install or sign-in. Tell the user about any that fail.
+Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (Acquia Skills), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API).
 
-- **Shell and network access.** If you can't run commands or reach the network (e.g. a chat-only mode, or sandbox networking disabled by an admin), **stop**: tell the user to switch to an agent or mode that can run terminal commands, or to sign up in the browser. Don't retry.
-- **Reachable hosts** (the user or an admin may need to allow these):
-  - `github.com`, `release-assets.githubusercontent.com` (acli download)
-  - `id.acquia.com` (sign-in)
-  - `cloud.acquia.com` (Cloud API)
-- **Eligible identity.** The user must sign in with an identity that has never had a trial. A work email already in an Acquia organization is rejected at create time.
-
-Before Q1, find out what's installed: a usable acli (`acli --version` prints `Acquia CLI` 4.3+ and `acli list api:trials` lists the commands; check `~/.local/bin/acli` first) and Acquia Skills (`npx skills list -g`). Then ask **Q1** in plain words: "Here's how this works: you sign in to Acquia once in your browser, you approve the site I suggest, and it's ready a few minutes later." Add one line per tool saying what you found, with no location:
-
-- "**Acquia CLI** (the tool I use to set up your site): already installed." / "not installed yet, I'll install it." / "an old version is installed, I'll install the current one alongside it."
-- "**Acquia Skills** (instructions that help me use Acquia correctly): already installed, I'll update them." / "not installed yet, I'll install them." (Leave out if `npx` is missing.)
-
-End with: "Use a personal email that hasn't had an Acquia trial before; work emails that already belong to a company's Acquia account won't work." Options:
-
-1. **Start my trial (Recommended):** set up what's missing and share anonymous usage data with Acquia.
-2. **Start without sharing usage data.**
-3. **Use the browser instead:** give https://www.acquia.com/products/acquia-cloud-platform/trial and end the flow.
-
-Q1 is the consent for every install in the flow. Don't ask again in step 2.
-
-### 2. Install acli 4.3+
-
-Run `acli --version`. If acli is missing, or `acli list api:trials` shows no commands (older than 4.3), install it per [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
-
-### 3. Sign in
-
-Run this in the background so you can read its output while it waits. Don't pass `-n`: with credentials stored, it takes the default `no` to the device-code prompt and falls through to an API key prompt.
+### Sign in (device code)
 
 ```bash
-export ACLI_NO_TELEMETRY=true      # Rule 5: no telemetry prompt can take the piped answer
+export ACLI_NO_TELEMETRY=true      # Rule 3; also stops a telemetry prompt taking a piped answer
 SHELL_INTERACTIVE=1 acli auth:login
 ```
 
-`SHELL_INTERACTIVE=1` makes acli treat the session as interactive even though an agent's shell has no terminal, so a piped answer reaches its prompt. Read the first line of output:
+Run it in the background and read its output while it waits. Why each part:
 
-- `Already authenticated as <label> (API key)`: re-run as `printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login` to answer yes to `Sign in with device code instead?`. The stored key stays on disk, untouched.
-- `Already authenticated via device code`: run `acli api:accounts:find`. If it succeeds, go to step 4. If it reports `Device token session expired`, re-run as `printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login` to answer yes to `Re-authenticate?`.
-- Otherwise it prints the activation URL and code and waits.
+- **No `-n`.** With credentials stored, acli asks `Sign in with device code instead?` (API key stored) or `Re-authenticate?` (device session stored). `-n` takes the default `no` and falls through to an API key prompt, exiting 1.
+- **`SHELL_INTERACTIVE=1`.** acli treats a session whose output is not a terminal (an agent's shell) as non-interactive, so a piped answer would never reach the prompt.
+- **One piped `y` to answer a prompt:** `printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login`. The stored API key stays on disk. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
 
-Pipe exactly one `y` (`printf 'y\n'`). Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
+First line of output:
 
-acli prints `https://id.acquia.com/activate` and an activation code. Tell the user:
+| Output | Meaning | Do |
+|---|---|---|
+| `Already authenticated as <label> (API key)` | An older key is stored | Re-run with one piped `y` |
+| `Already authenticated via device code` | A session is stored | `acli api:accounts:find`; on `Device token session expired`, re-run with one piped `y` |
+| An activation URL and code | Waiting for the user | Give the user both; the command blocks until they approve |
 
-> Open https://id.acquia.com/activate, sign in, and enter code `<CODE>`. This links this terminal to your Acquia account. Please do it now — the code expires in 10 minutes. Come back here when the page says the device is activated.
+Sign-in results:
 
-The command blocks until the user approves. That's not a hang.
+- `Code expired.` (after about 10 minutes) or `Authorization denied.`: run sign-in again.
+- An error page for a valid code: the user can submit it once more.
+- The page says to use username and password: the Acquia ID is password-based, so Google sign-in won't work for it.
+- The activation page also records acceptance of the trial agreement and acceptable use policy. That is not approval to create a specific trial.
+- To use an existing API key and secret instead: `acli auth:login --use-legacy-auth`.
 
-- If the activate page shows an error for a valid code, ask the user to enter it once more.
-- If acli exits with `Code expired.` or `Authorization denied.`, run step 3 again.
+`acli api:accounts:find` shows which identity acli is using (`mail`).
 
-The activate page also asks the user to accept the trial agreement and acceptable use policy. That click signs them in and records their acceptance of the terms. It is **not** approval to create a specific trial (see step 5). If the user declines the terms, relay the result and don't create a trial. An existing password-based Acquia ID can't sign in with Google; the page says to use username and password. Relay that and don't retry Google. For other sign-in failures see [Troubleshooting](../troubleshooting/SKILL.md#device-code-sign-in-fails).
-
-Only if the user wants to use an existing API key and secret instead of device code: `acli auth:login --use-legacy-auth` (or pass `--key`/`--secret`). See [Getting Started](../getting-started/SKILL.md).
-
-### 4. Check identity and eligibility
-
-Do this **before** asking about a site name, template, or region.
+### Check a trial: `api:account:find-trial`
 
 ```bash
-acli api:accounts:find      # which identity acli is using
-acli api:account:find-trial # that identity's trial
+acli api:account:find-trial
 ```
 
-Keep the email from `api:accounts:find`. Don't ask whether it's the right account here: Q2 shows it and offers a different account.
+Returns the signed-in identity's trial: `id`, `site_name`, `status`, `created_at`, `updated_at`, `percent_complete` (0–100), `region`, and `_links`. There's no CLI command to get a trial by id.
 
-- If `find-trial` returns **404**, the user has no trial. Continue to step 5.
-- Otherwise act on its state. A trial lasts 14 days from `created_at`; the response has no expiry field and `status` stays `completed` after expiry, so compute expiry as `created_at` + 14 days against `date -u`.
+A trial lasts 14 days from `created_at`. The response has no expiry field and `status` stays `completed` after expiry, so compute expiry as `created_at` + 14 days against `date -u`.
 
-| `find-trial` shows | Do |
+| Shows | Meaning |
 |---|---|
-| `status: pending` / `in-progress` and any of: empty `site_name`, empty `region`, `created_at` more than 1 hour ago | **Stop.** It's stuck from an earlier failed attempt, and a new trial can't be created on this account. Give the trial `id` and point them to [Acquia Support](https://acquia.my.site.com/s/contactsupport). Don't create or retry (`api:trials:retry` is for `failed` trials only). |
-| `status: pending` / `in-progress` otherwise | Still provisioning. Go to step 7. |
-| `status: completed`, expiry in the future | Active. Don't create. Go to step 8 and add the expiry date to the hand-over. |
-| `status: completed`, expiry passed | **Stop.** The trial ended on that date and each account gets one. Point them to [Acquia](https://www.acquia.com/about-us/contact) or their account manager. |
-| `status: failed` | Run `acli api:trials:retry <id>` once, then go to step 7. |
+| `404`, `This user does not have an active trial account.` | No trial: eligible to create |
+| `pending` / `in-progress` with an empty `site_name`, an empty `region`, or `created_at` more than 1 hour ago | Stuck record from an earlier failure. Blocks a new trial; only Acquia Support can clear it. Don't create or retry |
+| `pending` / `in-progress` otherwise | Provisioning |
+| `completed`, expiry in the future | Active |
+| `completed`, expiry passed | Expired; the account can't get another |
+| `failed` | Retry once with `acli api:trials:retry <id>` |
 
-### 5. Choose site name, template, and region
+### Choose values
 
-**Site name:** must match `^[a-z][a-z0-9]*$`, max 60 characters (lowercase letters and digits, starting with a letter). Make one up from what the user described.
+- **Site name:** `^[a-z][a-z0-9]*$`, max 60 characters (lowercase letters and digits, starting with a letter). Fix a name that breaks it, e.g. `My-Site` → `mysite`.
+- **Templates:** `acli api:trials:list-templates`. Each item has `id` (pass to create), `name`, `description`, `tags`. Paginated (`--limit`, `--offset`): fetch every page. `drupal_cms_site_template_base` is the blank starter.
+- **Regions:** `acli api:trials:list-regions`. Each item has `id` (pass to create) and `name`.
 
-**Template:**
-
-```bash
-acli api:trials:list-templates
-```
-
-Each item has `id` (pass to create), `name`, `description`, and `tags`. The output is paginated (`--limit`, `--offset`), so fetch every page.
-
-Pick one: the best match for the user's description of their site, or the blank starter template (`drupal_cms_site_template_base`) if they gave none.
-
-**Region:**
-
-```bash
-acli api:trials:list-regions
-```
-
-Each item has `id` (pass to create) and `name`.
-
-- One region: use it without asking, and name it in Q2.
-- Several regions: pick the nearest to any location the user mentioned, and add a `Choose a different region` option to Q2.
-
-**Q2: confirm in one question.** Check all three values against the lists and the name pattern. Then ask: "Signed in as `<email>`. Ready to create `<site_name>` with the `<template name>` template in `<region name>`." Options:
-
-1. **Create it (Recommended).**
-2. **Choose a different template:** follow up with every template `name` as an option, recommended first. If your question tool can't show them all, use a numbered list; never drop one.
-3. **Change the site name:** the one free-text answer. Fix a name that breaks the pattern (e.g. `My-Site` → `mysite`) and say so; no second confirmation.
-4. **Use a different account:** `printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login` to answer yes to `Re-authenticate?`, then continue from the activation message in step 3.
-
-"Use defaults", or values the user already gave, answer Q2. This is required even though the user already signed in: creating a trial acts on their real account and is approved separately from authenticating.
-
-### 6. Create
+### Create
 
 ```bash
 acli api:trials:create <site_name> <template_id> <region_id>
 # e.g. acli api:trials:create mysite umami us-east-1
 ```
 
-Success prints JSON with `"message": "Trial provisioning has been initiated."`. Don't use `--task-wait` (there's no task to wait on).
+Success prints JSON with `"message": "Trial provisioning has been initiated."`. Don't use `--task-wait`: there's no task to wait on.
 
-If it fails, see [Errors](#errors). Don't call create again.
+### Poll
 
-### 7. Poll
+Run `acli api:account:find-trial` every ~10 seconds until `status` is `completed` or `failed`.
 
-```bash
-acli api:account:find-trial
-```
+- For 2 minutes after create, an empty response or `404` means still starting. A `404` after that means create didn't take.
+- Provisioning normally finishes within 10 minutes.
+- `failed`: retry once with the trial's `id` (also in `_links.retry.href`).
 
-Run it every ~10 seconds until `status` is `completed` or `failed`. While pending, report `percent_complete` (0–100).
+### Links on a completed trial
 
-- For the first 2 minutes after create, an empty response or 404 means **still pending**, not failure. A 404 after that means create didn't take: stop and tell the user.
-- If it's still not `completed` after 10 minutes, stop polling and tell the user the trial is still provisioning.
-- `failed`: offer `acli api:trials:retry <id>`. Use the trial's `id` field (it's also in `_links.retry.href`). Then keep polling. Retry **once** only; if it fails again, relay the failure reason to the user instead of retrying further.
+- `_links.site.href`: the site, which is the trial's dev environment. Staging and prod exist with their own domains.
+- `_links.admin.href`: a one-time, expiring Drupal admin sign-in link. Rule 4.
+- `_links.self`, `organization`, `subscription`: API records, not the site. Some return `404`; use acli commands instead.
 
-### 8. Hand over
-
-When `status` is `completed`:
-
-- **Site:** `_links.site.href`. This is the trial's dev environment URL. Staging and prod environments exist too, but this is the site to open.
-- **Admin:** `_links.admin.href`. A one-time, expiring link that signs the user into the Drupal admin with no separate password. The user opens it in their browser. Report it verbatim and never fetch, open, or test it yourself.
-- **`_links.self` is not the site.** It's the trial's API record URL. Don't give it to the user as the site link.
-- Both links exist only when `status` is `completed`. While pending, report `percent_complete` and keep polling.
-
-Then ask **Q3**, "What next?", with options: **Open my site** (you open nothing), **Copy it to my computer** (in plain words: "I'll connect your computer to your Acquia account and set up a local copy"; choosing it is the consent to upload an SSH key and set up DDEV), **Start building**, **I'm done**.
+Both site and admin links exist only when `status` is `completed`.
 
 ## Errors
 
 | Error | Meaning | Do |
 |---|---|---|
-| `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value, tell the user what changed, and call create once more. |
-| `409` on create | The account already has a trial. | Run `find-trial` and follow the table in step 4. |
-| `403` / `already associated with an Acquia organization` on create | This identity isn't eligible. | **Stop**, asking with two options: **Sign in with a different account** (Q2 option 4, then repeat from step 4) or **Use the browser instead**. Don't retry create or re-run `auth:login` on your own. |
-| `409` on retry | The trial isn't `failed`. | Run `find-trial` and follow step 4. |
+| `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value and call create once more. |
+| `409` on create | The account already has a trial. | Run `find-trial` and act on its state. |
+| `403` / `already associated with an Acquia organization` on create | The identity belongs to an Acquia organization and can't take a trial. | Don't retry create. Only a different identity (one that has never had a trial) can. |
+| `403` / permission error otherwise | Terms not accepted, or the wrong identity is signed in. | Check `api:accounts:find`, sign in again. |
+| `409` on retry | The trial isn't `failed`. | Run `find-trial` and act on its state. |
 | `Deprecated: ...` lines before JSON | PHP 8.5 warnings from the PHAR build. | See [Troubleshooting](../troubleshooting/SKILL.md#deprecated-warnings-break-json-output). |
-
-There's no CLI command to get a trial by id. Always use `api:account:find-trial`.
 
 ## Work on the Trial Locally
 
-Trial SSH is stricter than a regular Cloud environment: **Drush over SSH only**. Interactive shells, rsync, scp, and sftp are rejected. That's expected, not an error to retry. Don't test an SSH key with plain `ssh` against the trial; use it for `git clone` only.
+Trial SSH is stricter than a regular Cloud environment: **Drush over SSH only**. Interactive shells, rsync, scp, and sftp are rejected. That's expected, not an error to retry. Use the key for `git clone`, not plain `ssh` to the environment.
 
-Only if the user asks for a local copy (e.g. with DDEV):
-
-1. **SSH key:** upload an RSA key with `--no-wait -n` (the trial directory has no linked application); see [SSH Key Management](../ssh-key-management/SKILL.md#key-requirements). Wait until the git host accepts the key before cloning (it can take several minutes).
+1. **SSH key:** RSA only. Upload with `--no-wait -n`: the trial directory has no linked application, and without `--no-wait` acli prints `Could not determine Cloud Application` after the upload worked. See [SSH Key Management](../ssh-key-management/SKILL.md#key-requirements). The git host can take several minutes to accept a new key.
 2. **PHP:** match `require.php` from the codebase's `composer.json`, e.g. `ddev config --php-version=8.4`. DDEV's default may be lower.
 3. **Database:** `acli pull:database --no-import`, then `ddev import-db --file=<downloaded .sql.gz>`.
-4. **Files:** can't be pulled from a trial (its SSH allows Drush only). Use `--no-files`; the local site will have no uploaded images.
+4. **Files:** can't be pulled from a trial. Use `--no-files`; the local site will have no uploaded images.
 5. A DDEV `mkcert` warning is harmless.
 
 ## Related
