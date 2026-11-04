@@ -28,7 +28,7 @@ Follow these at every step:
 1. **Stop early, not late.** If a step fails in a way this skill marks as "stop", tell the user why and end the flow. Don't continue to later steps.
 2. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. Any other failure: report it and stop. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 3. **Templates and regions are closed lists.** Offer only ids returned by the list commands. No "Other" option. Never send a value that isn't in the list, even if the user asks.
-4. **Three questions, as options.** The whole flow asks the user three questions: Q1 before installing (step 1), Q2 before creating (step 5), Q3 after hand-over (step 8). Ask nothing else unless a step says so. Use your harness's multiple-choice question tool if it has one; otherwise a numbered list answerable by number. Never ask the user to type a value, except a new site name when they choose to change it. The user picks one option, so the recommended option comes first and includes everything recommended; each other option leaves one thing out. Write questions in plain words for someone who has never used a terminal: no command names, paths, flags or tool names.
+4. **Three questions, as options.** The whole flow asks the user three questions: Q1 before installing (step 1), Q2 before creating (step 5), Q3 after hand-over (step 8). Ask nothing else unless a step says so. Use your harness's multiple-choice question tool if it has one; otherwise a numbered list answerable by number. Never ask the user to type a value, except a new site name when they choose to change it. The user picks one option, so the recommended option comes first and includes everything recommended; each other option leaves one thing out. Write questions in plain words for someone who has never used a terminal: no commands, paths or flags (Acquia CLI and Acquia Skills may be named).
 5. **Telemetry is the user's choice, asked in Q1.** Export `ACLI_NO_TELEMETRY=true` for every command, so acli never asks or records a default for the user, and record the Q1 answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n` (see [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry)).
 6. **Don't open or fetch `_links.admin.href`.** Give it to the user.
 
@@ -45,9 +45,12 @@ Check all of these before running install or sign-in. Tell the user about any th
   - `cloud.acquia.com` (Cloud API)
 - **Eligible identity.** The user must sign in with an identity that has never had a trial. A work email already in an Acquia organization is rejected at create time.
 
-Before Q1, find out what's installed: a usable acli (`acli --version` prints `Acquia CLI` 4.3+ and `acli list api:trials` lists the commands; check `~/.local/bin/acli` first) and Acquia Skills (`npx skills list -g`). Mention setting up tools in Q1 only if something is missing.
+Before Q1, find out what's installed: a usable acli (`acli --version` prints `Acquia CLI` 4.3+ and `acli list api:trials` lists the commands; check `~/.local/bin/acli` first) and Acquia Skills (`npx skills list -g`). Then ask **Q1** in plain words: "Here's how this works: you sign in to Acquia once in your browser, you approve the site I suggest, and it's ready a few minutes later." Add one line per tool saying what you found, with no location:
 
-Then ask **Q1** in plain words: "Here's how this works: I'll set up the tools this needs on your computer (only if missing), you sign in to Acquia once in your browser, and you approve the site I suggest. Use a personal email that hasn't had an Acquia trial before; work emails that already belong to a company's Acquia account won't work." Options:
+- "**Acquia CLI** (the tool I use to set up your site): already installed." / "not installed yet, I'll install it." / "an old version is installed, I'll install the current one alongside it."
+- "**Acquia Skills** (instructions that help me use Acquia correctly): already installed, I'll update them." / "not installed yet, I'll install them." (Leave out if `npx` is missing.)
+
+End with: "Use a personal email that hasn't had an Acquia trial before; work emails that already belong to a company's Acquia account won't work." Options:
 
 1. **Start my trial (Recommended):** set up what's missing and share anonymous usage data with Acquia.
 2. **Start without sharing usage data.**
