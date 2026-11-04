@@ -110,8 +110,10 @@ Prompts you to select the key file and enter a label.
   `ssh-keygen -t rsa -b 4096 -f ~/.ssh/acquia_rsa -N ""`.
 - **One Acquia account per key.** A key registered to another account fails with
   "Key already in use". Create a separate key.
-- **`--no-interaction` upload may print "Could not determine Cloud Application" even though the
-  key was uploaded.** Check `acli ssh-key:list` before retrying; a retry fails on the duplicate label.
+- **Pass `--no-wait` when no application is linked** (a trial, or any directory without
+  `acli app:link`). Without it, acli uploads the key, then tries to wait for it on the linked
+  application and prints "Could not determine Cloud Application" even though the upload
+  worked. Check `acli ssh-key:list` before retrying; a retry fails on the duplicate label.
 
 ### Wait for the key to work before cloning
 

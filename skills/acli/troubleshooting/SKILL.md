@@ -114,18 +114,18 @@ with the PHAR on PHP 8.5.
 **Cause:** An API key is already stored. acli asks `Sign in with device code instead?` with a
 default of `no`; `--no-interaction` takes that default and falls through to the key prompt.
 
-**Solution:** log out, then log in. Neither command prompts:
+**Solution:** drop `-n` and answer the prompt with one piped `y`:
 
 ```bash
-acli auth:logout -n   # exits 1 with "There are no active Cloud Platform credentials" if none: continue
-acli auth:login -n    # run in the background; read the activation URL and code
+export ACLI_NO_TELEMETRY=true
+printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login   # run in the background; read the activation URL and code
 ```
 
-Don't pipe `yes` into `auth:login`: if device code fails, it answers the API key fallback
-prompts as well and loops forever on `Value "y" is invalid`, and it can open a browser on the
-user's machine. `auth:logout -n` deactivates the API key but keeps it on disk
-(`--use-legacy-auth` brings it back). Then run `acli api:accounts:find` to confirm the active
-identity is the one you expect.
+`SHELL_INTERACTIVE=1` lets the piped answer reach the prompt from a shell with no terminal. The
+stored API key stays on disk. Don't pipe `yes` into `auth:login`: if device code fails, it
+answers the API key fallback prompts as well and loops forever on `Value "y" is invalid`, and
+it can open a browser on the user's machine. Then run `acli api:accounts:find` to confirm the
+active identity is the one you expect.
 
 ### "Error: Failed to authenticate"
 

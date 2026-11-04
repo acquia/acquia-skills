@@ -131,7 +131,7 @@ What happens depends on what's already on your machine:
 - **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
   device code instead (default: no). Say no to keep using the existing key. With
   `--no-interaction` it takes the `no` and then fails asking for a key and secret. To get
-  device code without a terminal, log out first, then log in (see
+  device code without a terminal, answer the prompt with one piped `y` (see
   [Agents and scripts](#agents-and-scripts)). Don't pipe `yes` into `acli auth:login`: if
   device code fails it answers the API key fallback prompts too, loops forever on
   `Value "y" is invalid`, and can open a browser on the user's machine.
@@ -150,19 +150,24 @@ while and a command reports your session has expired, just run `acli auth:login`
 
 ### Agents and scripts
 
-- Pass `-n` (`--no-interaction`) on every `acli` command so nothing blocks on a prompt.
+- Pass `-n` (`--no-interaction`) on every `acli` command except `auth:login`, so nothing blocks
+  on a prompt.
 - `acli api:*` commands print JSON on stdout; `-n` doesn't change that. Other commands print
   human-formatted output. Read stdout only, and skip anything before the first `{` or `[`.
 - To start device code sign-in when credentials are already stored:
 
   ```bash
-  acli auth:logout -n   # exits 1 with "There are no active Cloud Platform credentials" if none: continue
-  acli auth:login -n    # run in the background; read the activation URL and code from its output
+  export ACLI_NO_TELEMETRY=true                         # no telemetry prompt can take the answer
+  printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login    # run in the background; read the activation URL and code
   ```
 
-  With nothing active, `auth:login -n` goes straight to device code. On failure it prints the
-  error once and exits 1, with no fallback prompt and no browser. `auth:logout -n` deactivates
-  an API key but keeps it on disk (`--use-legacy-auth` brings it back).
+  Don't pass `-n` here: it takes the default `no` and falls through to an API key prompt.
+  `SHELL_INTERACTIVE=1` makes acli treat an agent's shell, which has no terminal, as
+  interactive, so the single piped `y` answers `Sign in with device code instead?` (API key
+  stored) or `Re-authenticate?` (device session stored). With nothing stored there is no
+  prompt and the `y` is unused. The stored API key stays on disk, untouched. Pipe exactly one
+  `y`: never pipe `yes`, which loops forever on the API key fallback prompts if device code
+  fails.
 
 ### Log Out
 
@@ -447,15 +452,15 @@ telemetry itself.
 
 ### Agents and scripts (telemetry)
 
-Export `ACLI_NO_TELEMETRY=true` for the run and pass `-n` on every command. Without a terminal
+Export `ACLI_NO_TELEMETRY=true` for the run. Without a terminal
 and without that variable, acli can record the default answer (yes) for the user without
 asking. With them, acli asks nothing and telemetry stays off until the user chooses.
 
-- Ask the user as a direct question in the conversation, never as a mention or an instruction
-  to run a command: "Would you like to share usage and performance data with Acquia to help
-  improve acli? (yes/no)". When the flow already stops for the user to confirm other choices
-  (for a trial: site name, template and region), add this as one more item in that same
-  message. Otherwise ask it before you finish setup, even if sign-in could not complete.
+- Don't spend a separate question on it. Fold it into the first question the flow already
+  asks, as options rather than free text: for an install, the consent to install (options
+  "Go ahead, usage data off (Recommended)" / "Go ahead and share usage data"); for a trial,
+  Q1 in [Trial Management](../trial-management/SKILL.md). Never present it as a mention or an
+  instruction to run a command.
 - When they answer, run the matching command yourself:
 
   ```bash
