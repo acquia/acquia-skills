@@ -53,59 +53,58 @@ Install into `~/.local/bin` (no `sudo`). Downloads come from `github.com` and
 
 **Before installing:** run `command -v acli && acli --version`. The Atlassian CLI is also
 named `acli`. If the output is not `Acquia CLI`, don't overwrite or shadow it: install Acquia
-CLI to `~/.local/bin/acli` and call it by its full path (or `php /path/to/acli.phar`) for the
-rest of the session.
+CLI into its own directory (`~/.local/acquia-cli/bin`, the `<dir>` below), call it by its full
+path, and skip the `PATH` steps. Otherwise `<dir>` is `~/.local/bin`.
 
 **Which option:**
-1. PHP 8.2+ with the curl, json and openssl extensions (`php --version`) → Option 2 (PHAR).
-2. Otherwise, Apple silicon Mac or Linux x86_64 → Option 1 (native).
-3. Otherwise (e.g. Intel Mac without PHP), there's no native build. Tell the user they need
+1. Apple silicon Mac or Linux x86_64 → Option 1 (native). Prefer it even when PHP is
+   installed: it needs no PHP and its JSON output can't be broken by PHP deprecation notices.
+2. Otherwise (e.g. Intel Mac), there's no native build. With PHP 8.2+ and the curl, json and
+   openssl extensions (`php --version`) → Option 2 (PHAR). Without it, tell the user they need
    PHP 8.2+ for the PHAR, and let them decide how to install it.
-4. If the download or the first `acli` command fails with a TLS/certificate error (such as
+3. If the download or the first `acli` command fails with a TLS/certificate error (such as
    `unable to get local issuer certificate`), a corporate proxy is intercepting HTTPS. Switch to
-   the other option **once**. If that fails too, **stop** and tell the user their network's TLS
-   inspection is blocking the download. Don't try CA bundle or `.ini` overrides yourself. See
+   the other option **once**, if this machine has one. If that fails too, **stop** and tell the
+   user their network's TLS inspection is blocking the download. Don't try CA bundle or `.ini`
+   overrides yourself. See
    [TLS / certificate errors](../troubleshooting/SKILL.md#tls--certificate-errors-during-download).
 
 Don't install Homebrew just to get acli.
 
-**Verify before running.** Download `SHA256SUMS` from the same release and check the file you
-downloaded. Don't run a file that fails the check. This is mandatory when an agent, not a
-person, does the install.
-
-```bash
-shasum -a 256 --check --ignore-missing SHA256SUMS    # macOS
-sha256sum --check --ignore-missing SHA256SUMS        # Linux
-```
-
-Download to a file first, check it, then `chmod +x` and move it into place. The Option 1 pipe
-below is for a person installing by hand; an agent saves the archive, verifies it, then
-extracts it.
+**Verify before running.** Download the file under its release name, next to the release's
+`SHA256SUMS`, and check it before you extract, rename or run it. The check must print
+`<file>: OK`; `no file was verified` means the name didn't match and nothing was checked. Don't
+run a file that fails. This is mandatory when an agent, not a person, does the install.
 
 #### Option 1: Native Binary (no PHP needed)
 
 ```bash
-mkdir -p ~/.local/bin
-# Apple silicon Mac. On Linux x86_64 use native-acli-linux-x86_64.tar.gz
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/native-acli-macos-aarch64.tar.gz \
-  | tar -xz -C ~/.local/bin acli
-chmod +x ~/.local/bin/acli
-export PATH="$HOME/.local/bin:$PATH"
-acli --version
+file=native-acli-macos-aarch64.tar.gz    # Linux x86_64: native-acli-linux-x86_64.tar.gz
+dir=~/.local/bin                         # see "Before installing"
+tmp=$(mktemp -d) && cd "$tmp"
+curl -fsSLO "https://github.com/acquia/cli/releases/latest/download/$file"
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
+shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf "$file" acli
+mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli"
+"$dir/acli" --version
 ```
 
 #### Option 2: PHP Archive (PHAR, needs PHP 8.2+)
 
 ```bash
-mkdir -p ~/.local/bin
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli.phar \
-  -o ~/.local/bin/acli
-chmod +x ~/.local/bin/acli
-export PATH="$HOME/.local/bin:$PATH"
-acli --version
+dir=~/.local/bin                         # see "Before installing"
+tmp=$(mktemp -d) && cd "$tmp"
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/acli.phar
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
+shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
+mkdir -p "$dir" && chmod +x acli.phar && mv acli.phar "$dir/acli"
+"$dir/acli" --version
 ```
 
-Add the `export PATH=...` line to `~/.zshrc` / `~/.bashrc` to keep it across shells.
+When `<dir>` is `~/.local/bin` and it isn't on your `PATH` yet, add
+`export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` / `~/.bashrc`. Don't do this for the
+Atlassian CLI case: it would hide whichever `acli` comes second.
 
 #### Already have an older acli?
 
@@ -161,7 +160,8 @@ while and a command reports your session has expired, just run `acli auth:login`
   printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login    # run in the background; read the activation URL and code
   ```
 
-  Don't pass `-n` here: it takes the default `no` and falls through to an API key prompt.
+  Don't pass `-n` here, and don't run it with nothing piped: either way acli takes the default
+  `no`, opens the API token page in the user's browser, and exits asking for a key.
   `SHELL_INTERACTIVE=1` makes acli treat an agent's shell, which has no terminal, as
   interactive, so the single piped `y` answers `Sign in with device code instead?` (API key
   stored) or `Re-authenticate?` (device session stored). With nothing stored there is no

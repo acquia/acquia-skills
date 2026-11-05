@@ -106,8 +106,10 @@ Prompts you to select the key file and enter a label.
 
 ### Key requirements
 
-- **RSA only.** ED25519 keys are rejected. Create one with
-  `ssh-keygen -t rsa -b 4096 -f ~/.ssh/acquia_rsa -N ""`.
+- **RSA on trials.** ED25519 keys were rejected on trial accounts during UAT (not yet
+  confirmed for other subscriptions). Use RSA there: `ssh-keygen -t rsa -b 4096 -f ~/.ssh/acquia_rsa`.
+  An agent without a terminal can't answer the passphrase prompt; add `-N ""` only after telling
+  the user the key will have no passphrase.
 - **One Acquia account per key.** A key registered to another account fails with
   "Key already in use". Create a separate key.
 - **Pass `--no-wait` when no application is linked** (a trial, or any directory without
@@ -117,15 +119,25 @@ Prompts you to select the key file and enter a label.
 
 ### Wait for the key to work before cloning
 
-A new key can be rejected by the git host for several minutes (~4 observed). Before the
-first `git clone`, test every ~20 seconds, for up to 8 minutes:
+A key with a non-default name (such as `~/.ssh/acquia_rsa`) isn't offered by `ssh` unless you
+name it, and an agent's shell has no terminal to accept the git host's key. So name both on every
+git command. Get the git URL from `acli api:applications:find` (`vcs.url`):
 
 ```bash
-ssh -T -o BatchMode=yes -o StrictHostKeyChecking=accept-new <sitegroup>@<git host>
+export GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new'
+git ls-remote <git url>
 ```
 
-Use the user and host from the application's git URL (`acli api:applications:find` →
-`vcs.url`).
+A new key can be rejected by the git host for several minutes (~4 observed). Repeat
+`git ls-remote` every ~20 seconds, for up to 8 minutes, until it exits 0, then `git clone` with
+the same `GIT_SSH_COMMAND`. In the clone, keep the key for later commands:
+
+```bash
+git config core.sshCommand "ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes"
+```
+
+Alternatively, add a `Host <git host>` entry with `IdentityFile ~/.ssh/acquia_rsa` to
+`~/.ssh/config`, with the user's OK, since it changes their SSH setup.
 
 ### Skip waiting for propagation
 

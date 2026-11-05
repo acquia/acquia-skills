@@ -6,7 +6,7 @@ compatibility: acli>=4.3
 metadata:
     category: onboarding
     author: Acquia
-    version: "1.0.0"
+    version: "1.1.0"
     tags: "acli, acquia-cloud, trials, provisioning, drupal, onboarding"
     software_requirements: "acli>=4.3"
 ---
@@ -35,7 +35,7 @@ If you cannot fetch it, keep to its shape: one question before you install anyth
 
 1. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 2. **Templates and regions are closed lists.** Send only ids returned by the list commands, even if the user asks for another value.
-3. **Telemetry is the user's choice.** Export `ACLI_NO_TELEMETRY=true` for every command, so acli never asks or records a default for the user. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
+3. **Telemetry is the user's choice.** Set `ACLI_NO_TELEMETRY=true` for every `acli` command, including version checks before the user has answered, so acli never asks or records a default for the user. Many agent shells don't keep an `export` between commands, so prefix each command (`ACLI_NO_TELEMETRY=true acli ...`) unless yours does. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
 4. **Don't open or fetch `_links.admin.href`.** It signs the holder into the site. Give it to the user.
 
 ## Commands
@@ -49,23 +49,15 @@ Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (a
 ### Sign in (device code)
 
 ```bash
-export ACLI_NO_TELEMETRY=true      # Rule 3; also stops a telemetry prompt taking a piped answer
-SHELL_INTERACTIVE=1 acli auth:login
+printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
 ```
 
-Run it in the background and read its output while it waits. Why each part:
+Run it in the background and read its output while it waits. It prints an activation URL and code: give the user both; the command blocks until they approve. Why each part:
 
-- **No `-n`.** With credentials stored, acli asks `Sign in with device code instead?` (API key stored) or `Re-authenticate?` (device session stored). `-n` takes the default `no` and falls through to an API key prompt, exiting 1.
+- **Exactly one piped `y`, every time.** With an API key stored, it answers `Sign in with device code instead?`; the key stays on disk. With a device session stored, it answers `Re-authenticate?` (one extra browser approval, in exchange for a single command with no branches). With nothing stored there is no prompt and the `y` is unused. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
+- **Never with nothing piped, and no `-n`.** Either way acli takes the default `no`, opens the API token page in the user's browser, and exits 1 asking for a key (seen on 4.3.2).
 - **`SHELL_INTERACTIVE=1`.** acli treats a session whose output is not a terminal (an agent's shell) as non-interactive, so a piped answer would never reach the prompt.
-- **One piped `y` to answer a prompt:** `printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login`. The stored API key stays on disk. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
-
-First line of output:
-
-| Output | Meaning | Do |
-|---|---|---|
-| `Already authenticated as <label> (API key)` | An older key is stored | Re-run with one piped `y` |
-| `Already authenticated via device code` | A session is stored | `acli api:accounts:find`; on `Device token session expired`, re-run with one piped `y` |
-| An activation URL and code | Waiting for the user | Give the user both; the command blocks until they approve |
+- **`ACLI_NO_TELEMETRY=true`.** Rule 3; it also stops a first-run telemetry prompt from taking the piped `y`.
 
 Sign-in results:
 
@@ -94,7 +86,7 @@ A trial lasts 14 days from `created_at`. The response has no expiry field and `s
 | `pending` / `in-progress` otherwise | Provisioning |
 | `completed`, expiry in the future | Active |
 | `completed`, expiry passed | Expired; the account can't get another |
-| `failed` | Retry once with `acli api:trials:retry <id>` |
+| `failed` | Retry with `acli api:trials:retry <id>`. At most one retry in the whole flow |
 
 ### Choose values
 
@@ -117,7 +109,7 @@ Run `acli api:account:find-trial` every ~10 seconds until `status` is `completed
 
 - For 2 minutes after create, an empty response or `404` means still starting. A `404` after that means create didn't take.
 - Provisioning normally finishes within 10 minutes.
-- `failed`: retry once with the trial's `id` (also in `_links.retry.href`).
+- `failed`: retry with the trial's `id` (also in `_links.retry.href`), unless you already retried during the eligibility check. One retry in the whole flow.
 
 ### Links on a completed trial
 
@@ -142,7 +134,7 @@ Both site and admin links exist only when `status` is `completed`.
 
 Trial SSH is stricter than a regular Cloud environment: **Drush over SSH only**. Interactive shells, rsync, scp, and sftp are rejected. That's expected, not an error to retry. Use the key for `git clone`, not plain `ssh` to the environment.
 
-1. **SSH key:** RSA only. Upload with `--no-wait -n`: the trial directory has no linked application, and without `--no-wait` acli prints `Could not determine Cloud Application` after the upload worked. See [SSH Key Management](../ssh-key-management/SKILL.md#key-requirements). The git host can take several minutes to accept a new key.
+1. **SSH key:** RSA only. Upload with `--no-wait -n`: the trial directory has no linked application, and without `--no-wait` acli prints `Could not determine Cloud Application` after the upload worked. See [SSH Key Management](../ssh-key-management/SKILL.md#key-requirements). The key isn't a default `ssh` identity, so name it on every git command, and wait for the git host to accept it before cloning: see [Wait for the key to work before cloning](../ssh-key-management/SKILL.md#wait-for-the-key-to-work-before-cloning).
 2. **PHP:** match `require.php` from the codebase's `composer.json`, e.g. `ddev config --php-version=8.4`. DDEV's default may be lower.
 3. **Database:** `acli pull:database --no-import`, then `ddev import-db --file=<downloaded .sql.gz>`.
 4. **Files:** can't be pulled from a trial. Use `--no-files`; the local site will have no uploaded images.
