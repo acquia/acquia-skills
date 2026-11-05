@@ -2,13 +2,13 @@
 name: trial-management
 description: "Use when creating a trial Acquia Cloud site, checking trial provisioning status, retrying a failed trial, or finding the live URL / admin sign-in link for a trial site."
 license: Proprietary
-compatibility: acli>=4.3
+compatibility: acli>=4.3.1
 metadata:
     category: onboarding
     author: Acquia
     version: "1.1.0"
     tags: "acli, acquia-cloud, trials, provisioning, drupal, onboarding"
-    software_requirements: "acli>=4.3"
+    software_requirements: "acli>=4.3.1"
 ---
 
 # Trial Site Management
@@ -29,22 +29,26 @@ To start a trial for a user end to end, fetch and follow the runbook:
 
 It holds the order of the steps, the three questions to ask the user (and their exact wording), and the message for every point where the flow stops. This skill is the command reference behind it: what each command does, what its output means, and why each workaround exists. Where the two differ on order, questions or what to tell the user, follow the runbook.
 
-If you cannot fetch it, keep to its shape: one question before you install anything (covering installs and usage data), one before you create the trial (site name, template, region and the signed-in account), and one after hand-over. Ask each as options, recommended first.
+If you cannot fetch it, keep to its shape. Ask three questions, each as options:
+
+1. Before you download or install anything, one question in three parts: start the trial here (recommended) or use the browser; install Acquia Skills (recommended) or skip them; share usage data or not, with neither marked recommended. If an API key is stored, also say that signing in switches Acquia CLI away from it.
+2. Before you create the trial: site name, template, region and the signed-in account.
+3. After hand-over: what next.
 
 ## Rules
 
 1. **Call `api:trials:create` once per signed-in identity.** The only exception: after a `400`, nothing was created, so fix the value and call it once more. To recover a trial whose `status` is `failed`, use `api:trials:retry`, never create.
 2. **Templates and regions are closed lists.** Send only ids returned by the list commands, even if the user asks for another value.
-3. **Telemetry is the user's choice.** Set `ACLI_NO_TELEMETRY=true` for every `acli` command, including version checks before the user has answered, so acli never asks or records a default for the user. Many agent shells don't keep an `export` between commands, so prefix each command (`ACLI_NO_TELEMETRY=true acli ...`) unless yours does. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
+3. **Telemetry is the user's choice.** Set `ACLI_NO_TELEMETRY=true` for every `acli` command, including version checks before the user has answered, so acli never asks or records a default for the user. Many agent shells don't keep an `export` between commands, so prefix each command (`ACLI_NO_TELEMETRY=true acli ...`). After the user chooses to share, stop adding it so the choice applies to the session; after "don't share", keep it. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
 4. **Don't open or fetch `_links.admin.href`.** It signs the holder into the site. Give it to the user.
 
 ## Commands
 
-### Install acli 4.3+
+### Install acli 4.3.1+
 
-A copy is usable when `acli --version` prints `Acquia CLI` 4.3 or later and `acli list api:trials` lists the trial commands. Check `~/.local/bin/acli` before the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
+A copy is usable when `acli --version` prints `Acquia CLI` 4.3.1 or later (4.3.0 lists the trial commands but falls back to API key sign-in) and `acli list api:trials` lists the trial commands. Check `~/.local/bin/acli` before the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
 
-Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (Acquia Skills), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API).
+Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (optional: only the Acquia Skills install; if it's blocked, skip the skills and carry on), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API).
 
 ### Sign in (device code)
 
@@ -54,7 +58,7 @@ printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
 
 Run it in the background and read its output while it waits. It prints an activation URL and code: give the user both; the command blocks until they approve. Why each part:
 
-- **Exactly one piped `y`, every time.** With an API key stored, it answers `Sign in with device code instead?`; the key stays on disk. With a device session stored, it answers `Re-authenticate?` (one extra browser approval, in exchange for a single command with no branches). With nothing stored there is no prompt and the `y` is unused. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
+- **Exactly one piped `y`, every time.** With an API key stored, it answers `Sign in with device code instead?`. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. With a device session stored, it answers `Re-authenticate?` (one extra browser approval, in exchange for a single command with no branches). With nothing stored there is no prompt and the `y` is unused. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
 - **Never with nothing piped, and no `-n`.** Either way acli takes the default `no`, opens the API token page in the user's browser, and exits 1 asking for a key (seen on 4.3.2).
 - **`SHELL_INTERACTIVE=1`.** acli treats a session whose output is not a terminal (an agent's shell) as non-interactive, so a piped answer would never reach the prompt.
 - **`ACLI_NO_TELEMETRY=true`.** Rule 3; it also stops a first-run telemetry prompt from taking the piped `y`.
@@ -126,9 +130,9 @@ Both site and admin links exist only when `status` is `completed`.
 | `400` on create | Bad `site_name`, or a template/region not from the lists. Nothing was created. | Fix the value and call create once more. |
 | `409` on create | The account already has a trial. | Run `find-trial` and act on its state. |
 | `403` / `already associated with an Acquia organization` on create | The identity belongs to an Acquia organization and can't take a trial. | Don't retry create. Only a different identity (one that has never had a trial) can. |
-| `403` / permission error otherwise | Terms not accepted, or the wrong identity is signed in. | Check `api:accounts:find`, sign in again. |
+| `403` / permission error otherwise | Terms not accepted, or the wrong identity is signed in. | Check `api:accounts:find`, sign in again once. A second `403`: stop and send the user to Acquia Support with the error. |
 | `409` on retry | The trial isn't `failed`. | Run `find-trial` and act on its state. |
-| `Deprecated: ...` lines before JSON | PHP 8.5 warnings from the PHAR build. | See [Troubleshooting](../troubleshooting/SKILL.md#deprecated-warnings-break-json-output). |
+| `Deprecated: ...` lines break JSON output | PHP 8.5 warnings from the PHAR build. | See [Troubleshooting](../troubleshooting/SKILL.md#deprecated-warnings-break-json-output). |
 
 ## Work on the Trial Locally
 

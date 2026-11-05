@@ -108,7 +108,7 @@ Atlassian CLI case: it would hide whichever `acli` comes second.
 
 #### Already have an older acli?
 
-Trial commands need 4.3+. If the old copy is root-owned (e.g. `/usr/local/bin/acli`), don't
+Trial commands need 4.3.1+ (4.3.0 lists them but its device code sign-in isn't configured). If the old copy is root-owned (e.g. `/usr/local/bin/acli`), don't
 overwrite it or use `sudo`: install into `~/.local/bin` as above, put it first on `PATH`, and
 check that `command -v acli` prints `~/.local/bin/acli`. A user-writable install can run
 `acli self:update` instead.
@@ -156,16 +156,20 @@ while and a command reports your session has expired, just run `acli auth:login`
 - To start device code sign-in when credentials are already stored:
 
   ```bash
-  export ACLI_NO_TELEMETRY=true                         # no telemetry prompt can take the answer
-  printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login    # run in the background; read the activation URL and code
+  # Run in the background; read the activation URL and code.
+  printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
   ```
+
+  Put `ACLI_NO_TELEMETRY=true` on the command itself, not in a separate `export`: many agent
+  shells drop exports between commands, and without it a first-run telemetry question would
+  take the piped `y` and record "yes" to sharing usage data.
 
   Don't pass `-n` here, and don't run it with nothing piped: either way acli takes the default
   `no`, opens the API token page in the user's browser, and exits asking for a key.
   `SHELL_INTERACTIVE=1` makes acli treat an agent's shell, which has no terminal, as
   interactive, so the single piped `y` answers `Sign in with device code instead?` (API key
   stored) or `Re-authenticate?` (device session stored). With nothing stored there is no
-  prompt and the `y` is unused. The stored API key stays on disk, untouched. Pipe exactly one
+  prompt and the `y` is unused. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Pipe exactly one
   `y`: never pipe `yes`, which loops forever on the API key fallback prompts if device code
   fails.
 
@@ -452,22 +456,27 @@ telemetry itself.
 
 ### Agents and scripts (telemetry)
 
-Export `ACLI_NO_TELEMETRY=true` for the run. Without a terminal
-and without that variable, acli can record the default answer (yes) for the user without
-asking. With them, acli asks nothing and telemetry stays off until the user chooses.
+Put `ACLI_NO_TELEMETRY=true` on every `acli` command (`ACLI_NO_TELEMETRY=true acli ...`) until
+the user has answered, rather than in one `export`: many agent shells drop exports between
+commands. Without a terminal and without that variable, acli can record the default answer
+(yes) for the user without asking. With it, acli asks nothing and reports telemetry as off.
 
 - Don't spend a separate question on it. Fold it into the first question the flow already
-  asks, as options rather than free text: for an install, the consent to install (options
-  "Go ahead and share usage data (Recommended)" / "Go ahead without sharing"); for a trial,
-  the first question of the [trial runbook](https://dev.acquia.com/agents/cloud-platform-trial.md). Never present it as a mention or an
-  instruction to run a command.
-- When they answer, run the matching command yourself:
+  asks, as its own part with two options and neither marked recommended: "Share anonymous
+  usage data" / "Don't share usage data". Declining must lead to the same flow. For a trial,
+  that is the usage-data part of the first question in the
+  [trial runbook](https://dev.acquia.com/agents/cloud-platform-trial.md). Never present it as a
+  mention or an instruction to run a command.
+- When they answer, record it yourself:
 
   ```bash
-  acli self:telemetry:enable --no-interaction
-  acli self:telemetry:disable --no-interaction
+  ACLI_NO_TELEMETRY=true acli self:telemetry:enable --no-interaction    # share
+  ACLI_NO_TELEMETRY=true acli self:telemetry:disable --no-interaction   # don't share
   ```
 
+  After "share", stop adding `ACLI_NO_TELEMETRY=true`, so the choice applies to the rest of
+  the session; with the answer stored, acli asks nothing more. After "don't share", keep it on
+  every command.
 - If they don't answer, leave telemetry off and tell them they'll be asked the next time they
   run acli themselves.
 

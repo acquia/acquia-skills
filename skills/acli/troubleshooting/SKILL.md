@@ -117,12 +117,12 @@ default of `no`; `--no-interaction` takes that default and falls through to the 
 **Solution:** drop `-n` and answer the prompt with one piped `y`:
 
 ```bash
-export ACLI_NO_TELEMETRY=true
-printf 'y\n' | SHELL_INTERACTIVE=1 acli auth:login   # run in the background; read the activation URL and code
+# Run in the background; read the activation URL and code.
+printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
 ```
 
-`SHELL_INTERACTIVE=1` lets the piped answer reach the prompt from a shell with no terminal. The
-stored API key stays on disk. Don't pipe `yes` into `auth:login`: if device code fails, it
+`SHELL_INTERACTIVE=1` lets the piped answer reach the prompt from a shell with no terminal.
+Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Don't pipe `yes` into `auth:login`: if device code fails, it
 answers the API key fallback prompts as well and loops forever on `Value "y" is invalid`, and
 it can open a browser on the user's machine. Then run `acli api:accounts:find` to confirm the
 active identity is the one you expect.
