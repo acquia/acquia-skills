@@ -48,7 +48,7 @@ If you cannot fetch it, keep to its shape. Ask three questions, each as options:
 
 A copy is usable when `acli --version` prints `Acquia CLI` 4.3.1 or later (4.3.0 lists the trial commands but falls back to API key sign-in) and `acli list api:trials` lists the trial commands. Check `~/.local/bin/acli` before the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
 
-Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (optional: only the Acquia Skills install; if it's blocked, skip the skills and carry on), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API).
+Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (optional: only the Acquia Skills install; if it's blocked, skip the skills and carry on), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API). API-key sign-in (`--use-legacy-auth`) also needs `accounts.acquia.com`; device-code sign-in does not.
 
 ### Sign in (device code)
 
