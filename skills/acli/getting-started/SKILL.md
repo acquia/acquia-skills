@@ -48,44 +48,70 @@ If you're working on a MEO subscription, see **[MEO Overview](../meo-overview/SK
 
 ### macOS & Linux
 
-#### Option 1: Native Binary (Recommended)
+Install into `~/.local/bin` (no `sudo`). Downloads come from `github.com` and
+`release-assets.githubusercontent.com`.
 
-The native binary requires no PHP installation and works on any modern macOS or Linux system.
+**Before installing:** run `command -v acli && acli --version`. The Atlassian CLI is also
+named `acli`. If the output is not `Acquia CLI`, don't overwrite or shadow it: install Acquia
+CLI into its own directory (`~/.local/acquia-cli/bin`, the `<dir>` below), call it by its full
+path, and skip the `PATH` steps. Otherwise `<dir>` is `~/.local/bin`.
 
-```bash
-# Download the latest release
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
-  -o /usr/local/bin/acli
+**Which option:**
+1. Apple silicon Mac or Linux x86_64 → Option 1 (native). Prefer it even when PHP is
+   installed: it needs no PHP and its JSON output can't be broken by PHP deprecation notices.
+2. Otherwise (e.g. Intel Mac), there's no native build. With PHP 8.2+ and the curl, json and
+   openssl extensions (`php --version`) → Option 2 (PHAR). Without it, tell the user they need
+   PHP 8.2+ for the PHAR, and let them decide how to install it.
+3. If the download or the first `acli` command fails with a TLS/certificate error (such as
+   `unable to get local issuer certificate`), a corporate proxy is intercepting HTTPS. Switch to
+   the other option **once**, if this machine has one. If that fails too, **stop** and tell the
+   user their network's TLS inspection is blocking the download. Don't try CA bundle or `.ini`
+   overrides yourself. See
+   [TLS / certificate errors](../troubleshooting/SKILL.md#tls--certificate-errors-during-download).
 
-# Make it executable
-chmod +x /usr/local/bin/acli
+Don't install Homebrew just to get acli.
 
-# Verify it works
-acli --version
-```
+**Verify before running.** Download the file under its release name, next to the release's
+`SHA256SUMS`, and check it before you extract, rename or run it. The check must print
+`<file>: OK`; `no file was verified` means the name didn't match and nothing was checked. Don't
+run a file that fails. This is mandatory when an agent, not a person, does the install.
 
-#### Option 2: PHP Archive (PHAR)
-
-If you prefer or already have PHP 8.2 installed:
-
-```bash
-curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli.phar \
-  -o /usr/local/bin/acli.phar
-chmod +x /usr/local/bin/acli.phar
-
-# Use as:
-acli.phar --version
-# Or create an alias
-alias acli='acli.phar'
-```
-
-#### Using Homebrew (macOS)
+#### Option 1: Native Binary (no PHP needed)
 
 ```bash
-brew tap acquia/cli
-brew install acli
-acli --version
+file=native-acli-macos-aarch64.tar.gz    # Linux x86_64: native-acli-linux-x86_64.tar.gz
+dir=~/.local/bin                         # see "Before installing"
+tmp=$(mktemp -d) && cd "$tmp"
+curl -fsSLO "https://github.com/acquia/cli/releases/latest/download/$file"
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
+shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
+tar -xzf "$file" acli
+mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli"
+"$dir/acli" --version
 ```
+
+#### Option 2: PHP Archive (PHAR, needs PHP 8.2+)
+
+```bash
+dir=~/.local/bin                         # see "Before installing"
+tmp=$(mktemp -d) && cd "$tmp"
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/acli.phar
+curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
+shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
+mkdir -p "$dir" && chmod +x acli.phar && mv acli.phar "$dir/acli"
+"$dir/acli" --version
+```
+
+When `<dir>` is `~/.local/bin` and it isn't on your `PATH` yet, add
+`export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` / `~/.bashrc`. Don't do this for the
+Atlassian CLI case: it would hide whichever `acli` comes second.
+
+#### Already have an older acli?
+
+Trial commands need 4.3.1+ (4.3.0 lists them but its device code sign-in isn't configured). If the old copy is root-owned (e.g. `/usr/local/bin/acli`), don't
+overwrite it or use `sudo`: install into `~/.local/bin` as above, put it first on `PATH`, and
+check that `command -v acli` prints `~/.local/bin/acli`. A user-writable install can run
+`acli self:update` instead.
 
 ---
 
@@ -102,7 +128,12 @@ What happens depends on what's already on your machine:
   sign-in there. Your organization's SSO/MFA policy applies, same as signing in anywhere else.
   No key or secret to copy-paste.
 - **An API key already active** — ACLI reports it and asks whether you'd rather sign in with
-  device code instead. Say no to keep using the existing key.
+  device code instead (default: no). Say no to keep using the existing key. With
+  `--no-interaction` it takes the `no` and then fails asking for a key and secret. To get
+  device code without a terminal, answer the prompt with one piped `y` (see
+  [Agents and scripts](#agents-and-scripts)). Don't pipe `yes` into `acli auth:login`: if
+  device code fails it answers the API key fallback prompts too, loops forever on
+  `Value "y" is invalid`, and can open a browser on the user's machine.
 - **A device code session already active** — ACLI reports you're already signed in and asks
   whether to re-authenticate. Say no to leave the existing session alone and exit immediately.
 - **`acli auth:login --use-legacy-auth`** (or passing `--key`/`--secret` directly) — always
@@ -115,6 +146,32 @@ if that directory already exists on your machine, otherwise `$XDG_CONFIG_HOME/ac
 (useful if both exist and you need to pick one). A device code session refreshes itself
 silently in the background while you're using acli regularly; if you haven't run acli in a
 while and a command reports your session has expired, just run `acli auth:login` again.
+
+### Agents and scripts
+
+- Pass `-n` (`--no-interaction`) on every `acli` command except `auth:login`, so nothing blocks
+  on a prompt.
+- `acli api:*` commands print JSON on stdout; `-n` doesn't change that. Other commands print
+  human-formatted output. Read stdout only, and skip anything before the first `{` or `[`.
+- To start device code sign-in when credentials are already stored:
+
+  ```bash
+  # Run in the background; read the activation URL and code.
+  printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
+  ```
+
+  Put `ACLI_NO_TELEMETRY=true` on the command itself, not in a separate `export`: many agent
+  shells drop exports between commands, and without it a first-run telemetry question would
+  take the piped `y` and record "yes" to sharing usage data.
+
+  Don't pass `-n` here, and don't run it with nothing piped: either way acli takes the default
+  `no`, opens the API token page in the user's browser, and exits asking for a key.
+  `SHELL_INTERACTIVE=1` makes acli treat an agent's shell, which has no terminal, as
+  interactive, so the single piped `y` answers `Sign in with device code instead?` (API key
+  stored) or `Re-authenticate?` (device session stored). With nothing stored there is no
+  prompt and the `y` is unused. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Pipe exactly one
+  `y`: never pipe `yes`, which loops forever on the API key fallback prompts if device code
+  fails.
 
 ### Log Out
 
@@ -129,7 +186,7 @@ deactivating it.
 ### Verify Authentication
 
 ```bash
-acli auth:me
+acli api:accounts:find
 ```
 
 Shows your name, email, and account information.
@@ -265,7 +322,7 @@ Run `acli app:link` in your project directory to associate it with a Cloud appli
 
 ```bash
 acli auth:login
-acli auth:me
+acli api:accounts:find
 ```
 
 ### Step 2: Set Up a Project
@@ -327,7 +384,7 @@ You don't have permission to access that application or resource. Check:
 - Are you logged in with the right Acquia account?
 - Do you have permissions in Acquia Cloud UI?
 
-Run `acli auth:me` to verify you're using the right account.
+Run `acli api:accounts:find` to verify you're using the right account.
 
 ### Need more help?
 
@@ -374,7 +431,7 @@ Aliases: `acli cc`, `acli cr`
 
 ## Telemetry
 
-acli collects anonymous usage data by default to help improve the tool. To opt out:
+acli collects anonymous usage data by default. Only the user decides. To opt out:
 
 ```bash
 acli self:telemetry:disable
@@ -393,6 +450,35 @@ acli self:telemetry:toggle
 ```
 
 Alias: `acli telemetry`
+
+Setting `ACLI_NO_TELEMETRY=true` in the environment skips both the first-run question and
+telemetry itself.
+
+### Agents and scripts (telemetry)
+
+Put `ACLI_NO_TELEMETRY=true` on every `acli` command (`ACLI_NO_TELEMETRY=true acli ...`) until
+the user has answered, rather than in one `export`: many agent shells drop exports between
+commands. Without a terminal and without that variable, acli can record the default answer
+(yes) for the user without asking. With it, acli asks nothing and reports telemetry as off.
+
+- Don't spend a separate question on it. Fold it into the first question the flow already
+  asks, as its own part with two options and neither marked recommended: "Share anonymous
+  usage data" / "Don't share usage data". Declining must lead to the same flow. For a trial,
+  that is the usage-data part of the first question in the
+  [trial runbook](https://dev.acquia.com/agents/cloud-platform-trial.md). Never present it as a
+  mention or an instruction to run a command.
+- When they answer, record it yourself:
+
+  ```bash
+  ACLI_NO_TELEMETRY=true acli self:telemetry:enable --no-interaction    # share
+  ACLI_NO_TELEMETRY=true acli self:telemetry:disable --no-interaction   # don't share
+  ```
+
+  After "share", stop adding `ACLI_NO_TELEMETRY=true`, so the choice applies to the rest of
+  the session; with the answer stored, acli asks nothing more. After "don't share", keep it on
+  every command.
+- If they don't answer, leave telemetry off and tell them they'll be asked the next time they
+  run acli themselves.
 
 ---
 

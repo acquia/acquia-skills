@@ -17,7 +17,7 @@ metadata:
 > **Platform:** This skill applies to **ACE (Acquia Cloud Enterprise)** subscriptions only.
 > For MEO (Multi-site Enterprise Operations), see [MEO Site Instances](../meo-site-instances/SKILL.md) for database and file operations.
 >
-> **Trials:** trial SSH is **Drush-only**, so any pull path that needs rsync/scp/sftp (for example `acli pull:files`) fails on a trial. Use `git clone` for code, and pull the database with `--no-import` then import into the local stack (e.g. `ddev import-db`); pass `--no-files` where a command would otherwise try to sync files. See [Trial Management](../trial-management/SKILL.md#ssh-access-on-trials).
+> **Trials:** trial SSH is **Drush-only**, so any pull path that needs rsync/scp/sftp (for example `acli pull:files`) fails on a trial. Use `git clone` for code, and pull the database with `--no-import` then import into the local stack (e.g. `ddev import-db`); pass `--no-files` where a command would otherwise try to sync files. See [Trial Management](../trial-management/SKILL.md#work-on-the-trial-locally).
 
 Use when:
 - Syncing your local environment with a Cloud Platform environment
@@ -215,7 +215,18 @@ acli push:files
 
 ### "Local database not found"
 
-`pull:all` and `pull:database` require a running local database. Make sure your local Drupal stack (Lando, DDEV, etc.) is running.
+`pull:all` and `pull:database` import with a local `mysql` client. With DDEV (`mysql` is inside
+the container), download only, then import through DDEV:
+
+```bash
+acli pull:database --no-import
+ddev import-db --file=<downloaded .sql.gz>
+```
+
+### `pull:files` fails on a trial site
+
+Trial SSH allows Drush only, so `pull:files` (and the files step of `pull:all` / `ddev pull`)
+fails. Use `--no-files`; the local site will have no uploaded images.
 
 ### "Access denied" on push
 
@@ -223,7 +234,7 @@ Verify your SSH key is set up and your account has write access to the environme
 
 ```bash
 acli ssh-key:list
-acli auth:me
+acli api:accounts:find
 ```
 
 ### Artifact push fails
