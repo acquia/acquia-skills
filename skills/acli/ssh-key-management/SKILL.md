@@ -104,6 +104,52 @@ acli ssh-key:upload
 
 Prompts you to select the key file and enter a label.
 
+### Key requirements
+
+- **RSA only.** Cloud Platform rejects ED25519 keys, on trials and other subscriptions, with
+  `The supplied public key type is unsupported.` `ssh-keygen`'s modern default is ED25519, so ask
+  for RSA explicitly: `ssh-keygen -t rsa -b 4096 -f ~/.ssh/acquia_rsa`.
+  An agent without a terminal can't answer the passphrase prompt; add `-N ""` only after telling
+  the user the key will have no passphrase.
+- **One Acquia account per key.** A key registered to another account fails with
+  "Key already in use". Create a separate key.
+- **Pass `--no-wait` when no application is linked** (a trial, or any directory without
+  `acli app:link`). Without it, acli uploads the key, then tries to wait for it on the linked
+  application and prints "Could not determine Cloud Application" even though the upload
+  worked. Check `acli ssh-key:list` before retrying; a retry fails on the duplicate label.
+
+### Wait for the key to work before cloning
+
+A key with a non-default name (such as `~/.ssh/acquia_rsa`) isn't offered by `ssh` unless you
+name it, and an agent's shell has no terminal to accept the git host's key. So name both on every
+git command. Put `GIT_SSH_COMMAND` inline on each command rather than in an `export`: many agent
+shells don't keep exports between commands, and without it `ssh` falls back to the default keys.
+Get the git URL from the environment, not the application (an application has no `vcs` field): run `acli api:applications:list` for the application `uuid`, then `acli api:applications:environment-list <uuid>` and read `vcs.url` from the dev environment:
+
+```bash
+GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' git ls-remote <git url>
+```
+
+A new key can be rejected by the git host for several minutes (~4 observed). Repeat
+`git ls-remote` every ~20 seconds, for up to 8 minutes, until it exits 0, then clone with the
+same inline prefix:
+
+```bash
+GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' git clone <git url> ~/<site_name>
+```
+
+Give the clone a target directory (here `~/<site_name>`), so it doesn't land in whatever
+directory the shell is in, and run the later steps from there.
+
+In the clone, keep the key for later commands:
+
+```bash
+git config core.sshCommand "ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes"
+```
+
+Alternatively, add a `Host <git host>` entry with `IdentityFile ~/.ssh/acquia_rsa` to
+`~/.ssh/config`, with the user's OK, since it changes their SSH setup.
+
 ### Skip waiting for propagation
 
 By default, acli waits for the key to propagate to all servers. Skip this with:
@@ -174,11 +220,10 @@ acli ssh-key:delete --public-key "ab:cd:ef:12:34:56:78:90"
 
 ### SSH into your IDE
 
-Once you have an SSH key set up, you can connect to your IDE:
+Replace the placeholders with your IDE's SSH user and host:
 
 ```bash
-# Note: Use the IDE ides-hostname, not the web URL
-ssh -i ~/.ssh/id_rsa user@ide-12345.ides.acquia.com
+ssh -i ~/.ssh/id_rsa <ide-ssh-user>@<ide-ssh-host>
 ```
 
 ### Set up git over SSH in your IDE

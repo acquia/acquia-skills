@@ -54,13 +54,13 @@ Select a Cloud Platform application:
 
 IDEs for My App:
   My IDE (another.user@example.com)
-    Web URL: https://ide-12345.ides.acquia.com
-    IDE URL: https://ide-12345.web.ahdev.cloud
+    IDE URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.ides.acquia.com
+    Web URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud
     Created: 2024-01-15
 
 Other IDE (another.user@example.com)
-    Web URL: https://ide-67890.ides.acquia.com
-    IDE URL: https://ide-67890.web.ahdev.cloud
+    IDE URL: https://9a83c081-ef78-4dbd-8852-11cc3eb248f7.ides.acquia.com
+    Web URL: https://9a83c081-ef78-4dbd-8852-11cc3eb248f7.web.ahdev.cloud
     Created: 2024-02-20
 ```
 
@@ -91,7 +91,7 @@ Prompts you step-by-step:
 ? Creating your Cloud IDE...
 ✓ IDE created successfully!
 
-Your IDE is ready at: https://ide-12345.ides.acquia.com
+Your IDE is ready at: https://feea197a-9503-4441-9f49-b4d420b0ecf8.ides.acquia.com
 ```
 
 ### Scripted (non-interactive)
@@ -154,8 +154,8 @@ IDE: My IDE
   Created: 2024-01-15
   Last Activity: 2024-02-20 14:23:00
   Status: Running
-  Web URL: https://ide-12345.web.ahdev.cloud
-  IDE URL: https://ide-12345.ides.acquia.com
+  IDE URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.ides.acquia.com
+  Web URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud
 ```
 
 ---
@@ -196,7 +196,7 @@ acli ide:share
 Prints the share URL for your IDE:
 
 ```
-Share URL: https://ide-12345.ides.acquia.com?share_token=abc123xyz
+Share URL: https://feea197a-9503-4441-9f49-b4d420b0ecf8.web.ahdev.cloud?share=<share-code>
 ```
 
 ### Regenerate the share token
