@@ -219,9 +219,13 @@ acli push:files
 the container), download only, then import through DDEV:
 
 ```bash
-acli pull:database --no-import
-ddev import-db --file=<downloaded .sql.gz>
+acli pull:database <environment> --no-import
+ddev import-db --file=<path>
 ```
+
+Pass the environment (its `id` or `<app>.<env>` alias) unless the directory is linked with
+`acli app:link`; a fresh clone isn't, so acli can't pick an application. The backup goes to the
+system temp directory, and acli prints its path in `... database backup downloaded to <path>`.
 
 ### `pull:files` fails on a trial site
 

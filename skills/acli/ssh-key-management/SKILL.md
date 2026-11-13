@@ -124,7 +124,7 @@ A key with a non-default name (such as `~/.ssh/acquia_rsa`) isn't offered by `ss
 name it, and an agent's shell has no terminal to accept the git host's key. So name both on every
 git command. Put `GIT_SSH_COMMAND` inline on each command rather than in an `export`: many agent
 shells don't keep exports between commands, and without it `ssh` falls back to the default keys.
-Get the git URL from `acli api:applications:find` (`vcs.url`):
+Get the git URL from the environment, not the application (an application has no `vcs` field): run `acli api:applications:list` for the application `uuid`, then `acli api:applications:environment-list <uuid>` and read `vcs.url` from the dev environment:
 
 ```bash
 GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' git ls-remote <git url>
@@ -135,8 +135,11 @@ A new key can be rejected by the git host for several minutes (~4 observed). Rep
 same inline prefix:
 
 ```bash
-GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' git clone <git url>
+GIT_SSH_COMMAND='ssh -i ~/.ssh/acquia_rsa -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=accept-new' git clone <git url> ~/<site_name>
 ```
+
+Give the clone a target directory (here `~/<site_name>`), so it doesn't land in whatever
+directory the shell is in, and run the later steps from there.
 
 In the clone, keep the key for later commands:
 

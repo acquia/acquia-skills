@@ -114,14 +114,17 @@ with the PHAR on PHP 8.5.
 **Cause:** An API key is already stored. acli asks `Sign in with device code instead?` with a
 default of `no`; `--no-interaction` takes that default and falls through to the key prompt.
 
-**Solution:** drop `-n` and answer the prompt with one piped `y`:
+**Solution:** with an API key stored, drop `-n` and answer the prompt with one piped `y`:
 
 ```bash
 # Run in the background; read the activation URL and code.
-printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
+printf 'y\n' | ACLI_NO_TELEMETRY=true acli auth:login
 ```
 
-`SHELL_INTERACTIVE=1` lets the piped answer reach the prompt from a shell with no terminal.
+Only this case takes the piped `y`. With nothing stored or a device session, use
+`ACLI_NO_TELEMETRY=true acli -n auth:login` and pipe nothing; see
+[Agents and scripts](../getting-started/SKILL.md#agents-and-scripts). acli stays interactive
+with a piped stdin unless `-n` is passed, and nothing in it reads `SHELL_INTERACTIVE`.
 Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Don't pipe `yes` into `auth:login`: if device code fails, it
 answers the API key fallback prompts as well and loops forever on `Value "y" is invalid`, and
 it can open a browser on the user's machine. Then run `acli api:accounts:find` to confirm the

@@ -52,20 +52,39 @@ Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (a
 
 ### Sign in (device code)
 
+Pick the command by what's stored, and check again before every sign-in (a failed sign-in leaves a stored key active; a successful one deactivates it):
+
 ```bash
-printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
+# Prints "API key stored" when acli has an active API key. Reads only that field; never print the file.
+for f in "${ACLI_HOME:+$ACLI_HOME/cloud_api.conf}" ~/.acquia/cloud_api.conf "${XDG_CONFIG_HOME:-$HOME/.config}/acquia/cloud_api.conf"; do
+  [ -f "$f" ] || continue; grep -q '"acli_key": *"[^"]' "$f" && echo "API key stored"; break
+done
 ```
 
-Run it in the background and read its output while it waits. It prints an activation URL and code: give the user both; the command blocks until they approve. Why each part:
+- **"API key stored":**
 
-- **Exactly one piped `y`, every time.** With an API key stored, it answers `Sign in with device code instead?`. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. With a device session stored, it answers `Re-authenticate?` (one extra browser approval, in exchange for a single command with no branches). With nothing stored there is no prompt and the `y` is unused. Never pipe `yes`, the endless form: if device code fails, it also answers the API key fallback prompts and loops forever on `Value "y" is invalid`.
-- **Never with nothing piped, and no `-n`.** Either way acli takes the default `no`, opens the API token page in the user's browser, and exits 1 asking for a key (seen on 4.3.2).
-- **`SHELL_INTERACTIVE=1`.** acli treats a session whose output is not a terminal (an agent's shell) as non-interactive, so a piped answer would never reach the prompt.
+  ```bash
+  printf 'y\n' | ACLI_NO_TELEMETRY=true acli auth:login
+  ```
+
+- **Otherwise** (nothing stored, or a device session):
+
+  ```bash
+  ACLI_NO_TELEMETRY=true acli -n auth:login
+  ```
+
+Run it in the background and read its output while it waits. It prints an activation URL and code: give the user both; the command blocks until they approve. Why each form (acli 4.3.2, `AuthLoginCommand::execute`):
+
+- **API key stored: one piped `y`, no `-n`.** The `y` answers `Sign in with device code instead?`. With `-n` or nothing piped, acli takes the default `no`, falls back to API-key sign-in, opens the API token page in the user's browser, and exits 1. If device sign-in then fails, acli asks `Fall back to API key authentication?`, finds no input left, takes the default `no`, and exits 1 without opening anything. A successful sign-in deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way.
+- **Otherwise: `-n`, nothing piped.** With nothing stored, `-n` goes straight to device-code sign-in and, if it fails, prints the error once and exits 1. With a device session stored, `-n` skips `Re-authenticate?` and signs in again. Don't pipe a `y` into this form: with nothing stored, a failed device sign-in (network error, `Code expired.`, `Authorization denied.`) takes the `y` as yes to `Fall back to API key authentication?`, and acli then opens the API token page in the user's browser.
+- **Never pipe `yes`**, the endless form: it answers every prompt, including the API key fallback, and loops forever on `Value "y" is invalid`.
 - **`ACLI_NO_TELEMETRY=true`.** Rule 3; it also stops a first-run telemetry prompt from taking the piped `y`.
+
+There is no `SHELL_INTERACTIVE` setting: nothing in acli or its Symfony Console reads it. acli stays interactive with a piped stdin unless `-n` is passed.
 
 Sign-in results:
 
-- `Code expired.` (after about 10 minutes) or `Authorization denied.`: run sign-in again.
+- `Code expired.` (after about 10 minutes) or `Authorization denied.`: run the check above again, then sign in again.
 - An error page for a valid code: the user can submit it once more.
 - The page says to use username and password: the Acquia ID is password-based, so Google sign-in won't work for it.
 - The activation page also records acceptance of the trial agreement and acceptable use policy. That is not approval to create a specific trial.
@@ -102,7 +121,7 @@ A trial lasts 14 days from `created_at`. The response has no expiry field and `s
 
 ```bash
 acli api:trials:create <site_name> <template_id> <region_id>
-# e.g. acli api:trials:create mysite umami us-east-1
+# e.g. acli api:trials:create mysite drupal_cms_site_template_base us-east-1
 ```
 
 Success prints JSON with `"message": "Trial provisioning has been initiated."`. Don't use `--task-wait`: there's no task to wait on.
@@ -140,7 +159,7 @@ Trial SSH is stricter than a regular Cloud environment: **Drush over SSH only**.
 
 1. **SSH key:** RSA only. Upload with `--no-wait -n`: the trial directory has no linked application, and without `--no-wait` acli prints `Could not determine Cloud Application` after the upload worked. See [SSH Key Management](../ssh-key-management/SKILL.md#key-requirements). The key isn't a default `ssh` identity, so name it on every git command, and wait for the git host to accept it before cloning: see [Wait for the key to work before cloning](../ssh-key-management/SKILL.md#wait-for-the-key-to-work-before-cloning).
 2. **PHP:** match `require.php` from the codebase's `composer.json`, e.g. `ddev config --php-version=8.4`. DDEV's default may be lower.
-3. **Database:** `acli pull:database --no-import`, then `ddev import-db --file=<downloaded .sql.gz>`.
+3. **Database:** `acli pull:database <environment> --no-import`, where `<environment>` is the dev environment's `id` from `acli api:applications:environment-list <application uuid>` (a fresh clone has no linked application, so acli can't pick one). The backup goes to the system temp directory; read its path from `... database backup downloaded to <path>`, then `ddev import-db --file=<path>`.
 4. **Files:** can't be pulled from a trial. Use `--no-files`; the local site will have no uploaded images.
 5. A DDEV `mkcert` warning is harmless.
 

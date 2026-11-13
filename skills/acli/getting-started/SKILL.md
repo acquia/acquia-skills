@@ -81,12 +81,12 @@ run a file that fails. This is mandatory when an agent, not a person, does the i
 ```bash
 file=native-acli-macos-aarch64.tar.gz    # Linux x86_64: native-acli-linux-x86_64.tar.gz
 dir=~/.local/bin                         # see "Before installing"
-tmp=$(mktemp -d) && cd "$tmp"
-curl -fsSLO "https://github.com/acquia/cli/releases/latest/download/$file"
-curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
-shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
-tar -xzf "$file" acli
-mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli"
+( tmp=$(mktemp -d) && cd "$tmp" &&
+  curl -fsSLO "https://github.com/acquia/cli/releases/latest/download/$file" &&
+  curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS &&
+  shasum -a 256 --check --ignore-missing SHA256SUMS &&  # Linux: sha256sum --check --ignore-missing SHA256SUMS
+  tar -xzf "$file" acli &&
+  mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli" )
 "$dir/acli" --version
 ```
 
@@ -94,11 +94,11 @@ mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli"
 
 ```bash
 dir=~/.local/bin                         # see "Before installing"
-tmp=$(mktemp -d) && cd "$tmp"
-curl -fsSLO https://github.com/acquia/cli/releases/latest/download/acli.phar
-curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS
-shasum -a 256 --check --ignore-missing SHA256SUMS    # Linux: sha256sum --check --ignore-missing SHA256SUMS
-mkdir -p "$dir" && chmod +x acli.phar && mv acli.phar "$dir/acli"
+( tmp=$(mktemp -d) && cd "$tmp" &&
+  curl -fsSLO https://github.com/acquia/cli/releases/latest/download/acli.phar &&
+  curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS &&
+  shasum -a 256 --check --ignore-missing SHA256SUMS &&  # Linux: sha256sum --check --ignore-missing SHA256SUMS
+  mkdir -p "$dir" && chmod +x acli.phar && mv acli.phar "$dir/acli" )
 "$dir/acli" --version
 ```
 
@@ -149,29 +149,38 @@ while and a command reports your session has expired, just run `acli auth:login`
 
 ### Agents and scripts
 
-- Pass `-n` (`--no-interaction`) on every `acli` command except `auth:login`, so nothing blocks
-  on a prompt.
+- Pass `-n` (`--no-interaction`) on every `acli` command, so nothing blocks on a prompt. The
+  one exception is `auth:login` with an API key stored (below).
 - `acli api:*` commands print JSON on stdout; `-n` doesn't change that. Other commands print
   human-formatted output. Read stdout only, and skip anything before the first `{` or `[`.
-- To start device code sign-in when credentials are already stored:
+- To sign in by device code, check what's stored first:
 
   ```bash
-  # Run in the background; read the activation URL and code.
-  printf 'y\n' | ACLI_NO_TELEMETRY=true SHELL_INTERACTIVE=1 acli auth:login
+  # Prints "API key stored" when acli has an active API key. Reads only that field; never print the file.
+  for f in "${ACLI_HOME:+$ACLI_HOME/cloud_api.conf}" ~/.acquia/cloud_api.conf "${XDG_CONFIG_HOME:-$HOME/.config}/acquia/cloud_api.conf"; do
+    [ -f "$f" ] || continue; grep -q '"acli_key": *"[^"]' "$f" && echo "API key stored"; break
+  done
+  ```
+
+  Then run one of these in the background and read the activation URL and code:
+
+  ```bash
+  printf 'y\n' | ACLI_NO_TELEMETRY=true acli auth:login   # "API key stored"
+  ACLI_NO_TELEMETRY=true acli -n auth:login               # otherwise
   ```
 
   Put `ACLI_NO_TELEMETRY=true` on the command itself, not in a separate `export`: many agent
   shells drop exports between commands, and without it a first-run telemetry question would
   take the piped `y` and record "yes" to sharing usage data.
 
-  Don't pass `-n` here, and don't run it with nothing piped: either way acli takes the default
-  `no`, opens the API token page in the user's browser, and exits asking for a key.
-  `SHELL_INTERACTIVE=1` makes acli treat an agent's shell, which has no terminal, as
-  interactive, so the single piped `y` answers `Sign in with device code instead?` (API key
-  stored) or `Re-authenticate?` (device session stored). With nothing stored there is no
-  prompt and the `y` is unused. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Pipe exactly one
-  `y`: never pipe `yes`, which loops forever on the API key fallback prompts if device code
-  fails.
+  With an API key stored, the one `y` answers `Sign in with device code instead?`; `-n` or
+  nothing piped takes the default `no`, opens the API token page in the user's browser, and
+  exits asking for a key. Otherwise use `-n` and pipe nothing: with nothing stored it goes
+  straight to device code and fails once, cleanly, if sign-in fails; with a device session
+  stored it signs in again. A `y` piped there would answer `Fall back to API key
+  authentication?` after a failed sign-in and open the token page. Switching to device code deactivates the stored API key: acli keeps it in the config file but stops using it, and only `acli auth:login --use-legacy-auth` makes it active again. Scripts that rely on that key stop authenticating, so tell the user before you sign in this way. Never pipe
+  `yes`, which loops forever on the API key fallback prompts if device code fails. Nothing in
+  acli reads `SHELL_INTERACTIVE`, so don't set it.
 
 ### Log Out
 
