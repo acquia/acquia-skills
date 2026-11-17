@@ -73,18 +73,26 @@ Don't install Homebrew just to get acli.
 
 **Verify before running.** Download the file under its release name, next to the release's
 `SHA256SUMS`, and check it before you extract, rename or run it. The check must print
-`<file>: OK`; `no file was verified` means the name didn't match and nothing was checked. Don't
+`<file>: OK`; `no file was verified` means the name didn't match and nothing was checked. On
+Linux, use `sha256sum --check --ignore-missing SHA256SUMS` in place of `shasum -a 256 --check
+--ignore-missing SHA256SUMS` in the blocks below. Keep comments out of the `&&` chain: in an
+interactive zsh (the macOS default) a `#` there is read as a command, which ends the chain, and the
+next line then runs even when the check failed. Don't
 run a file that fails. This is mandatory when an agent, not a person, does the install.
 
 #### Option 1: Native Binary (no PHP needed)
 
+`file` is `native-acli-macos-aarch64.tar.gz` on an Apple silicon Mac and
+`native-acli-linux-x86_64.tar.gz` on Linux x86_64. `dir` is `~/.local/bin`, or
+`~/.local/acquia-cli/bin` in the Atlassian CLI case (see "Before installing").
+
 ```bash
-file=native-acli-macos-aarch64.tar.gz    # Linux x86_64: native-acli-linux-x86_64.tar.gz
-dir=~/.local/bin                         # see "Before installing"
+file=native-acli-macos-aarch64.tar.gz
+dir=~/.local/bin
 ( tmp=$(mktemp -d) && cd "$tmp" &&
   curl -fsSLO "https://github.com/acquia/cli/releases/latest/download/$file" &&
   curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS &&
-  shasum -a 256 --check --ignore-missing SHA256SUMS &&  # Linux: sha256sum --check --ignore-missing SHA256SUMS
+  shasum -a 256 --check --ignore-missing SHA256SUMS &&
   tar -xzf "$file" acli &&
   mkdir -p "$dir" && chmod +x acli && mv acli "$dir/acli" )
 "$dir/acli" --version
@@ -92,12 +100,14 @@ dir=~/.local/bin                         # see "Before installing"
 
 #### Option 2: PHP Archive (PHAR, needs PHP 8.2+)
 
+`dir` is the same as in Option 1.
+
 ```bash
-dir=~/.local/bin                         # see "Before installing"
+dir=~/.local/bin
 ( tmp=$(mktemp -d) && cd "$tmp" &&
   curl -fsSLO https://github.com/acquia/cli/releases/latest/download/acli.phar &&
   curl -fsSLO https://github.com/acquia/cli/releases/latest/download/SHA256SUMS &&
-  shasum -a 256 --check --ignore-missing SHA256SUMS &&  # Linux: sha256sum --check --ignore-missing SHA256SUMS
+  shasum -a 256 --check --ignore-missing SHA256SUMS &&
   mkdir -p "$dir" && chmod +x acli.phar && mv acli.phar "$dir/acli" )
 "$dir/acli" --version
 ```
@@ -153,20 +163,27 @@ while and a command reports your session has expired, just run `acli auth:login`
   one exception is `auth:login` with an API key stored (below).
 - `acli api:*` commands print JSON on stdout; `-n` doesn't change that. Other commands print
   human-formatted output. Read stdout only, and skip anything before the first `{` or `[`.
-- To sign in by device code, check what's stored first:
+- To sign in by device code, check what's stored first. The check prints `API key stored` when acli has an active API key. acli reads `cloud_api.conf` from one directory only: `$ACLI_HOME` if set; otherwise `~/.acquia` whenever it exists, even with no `cloud_api.conf` in it; otherwise `${XDG_CONFIG_HOME:-~/.config}/acquia`. So check only that directory: a key in a file acli doesn't read isn't stored as far as acli is concerned. It reads only the `acli_key` field; never print the file, which also holds the secret.
 
   ```bash
-  # Prints "API key stored" when acli has an active API key. Reads only that field; never print the file.
-  for f in "${ACLI_HOME:+$ACLI_HOME/cloud_api.conf}" ~/.acquia/cloud_api.conf "${XDG_CONFIG_HOME:-$HOME/.config}/acquia/cloud_api.conf"; do
-    [ -f "$f" ] || continue; grep -q '"acli_key": *"[^"]' "$f" && echo "API key stored"; break
-  done
+  d=${ACLI_HOME:-}
+  if [ -z "$d" ]; then
+    if [ -e ~/.acquia ]; then d=~/.acquia; else d="${XDG_CONFIG_HOME:-$HOME/.config}/acquia"; fi
+  fi
+  grep -q '"acli_key": *"[^"]' "$d/cloud_api.conf" 2>/dev/null && echo "API key stored"
   ```
 
-  Then run one of these in the background and read the activation URL and code:
+  Then run one of these in the background and read the activation URL and code. If it printed
+  `API key stored`:
 
   ```bash
-  printf 'y\n' | ACLI_NO_TELEMETRY=true acli auth:login   # "API key stored"
-  ACLI_NO_TELEMETRY=true acli -n auth:login               # otherwise
+  printf 'y\n' | ACLI_NO_TELEMETRY=true acli auth:login
+  ```
+
+  Otherwise:
+
+  ```bash
+  ACLI_NO_TELEMETRY=true acli -n auth:login
   ```
 
   Put `ACLI_NO_TELEMETRY=true` on the command itself, not in a separate `export`: many agent
@@ -478,10 +495,8 @@ commands. Without a terminal and without that variable, acli can record the defa
   mention or an instruction to run a command.
 - When they answer, record it yourself:
 
-  ```bash
-  ACLI_NO_TELEMETRY=true acli self:telemetry:enable --no-interaction    # share
-  ACLI_NO_TELEMETRY=true acli self:telemetry:disable --no-interaction   # don't share
-  ```
+  Share: `ACLI_NO_TELEMETRY=true acli self:telemetry:enable --no-interaction`. Don't share:
+  `ACLI_NO_TELEMETRY=true acli self:telemetry:disable --no-interaction`.
 
   After "share", stop adding `ACLI_NO_TELEMETRY=true`, so the choice applies to the rest of
   the session; with the answer stored, acli asks nothing more. After "don't share", keep it on

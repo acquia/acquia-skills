@@ -46,7 +46,7 @@ If you cannot fetch it, keep to its shape. Ask three questions, each as options:
 
 ### Install acli 4.3.1+
 
-A copy is usable when `acli --version` prints `Acquia CLI` 4.3.1 or later (4.3.0 lists the trial commands but falls back to API key sign-in) and `acli list api:trials` lists the trial commands. Check `~/.local/bin/acli` before the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
+A copy is usable when `acli --version` prints `Acquia CLI` 4.3.1 or later (4.3.0 lists the trial commands but falls back to API key sign-in) and `acli list api:trials` lists the trial commands. Check `~/.local/acquia-cli/bin/acli` first (where `getting-started` installs when the Atlassian CLI is present, off the PATH), then `~/.local/bin/acli`, then `acli` on the PATH: an old copy can come first. To install, see [Getting Started → Installation](../getting-started/SKILL.md#installation). Don't install Homebrew or PHP, and don't use `sudo`.
 
 Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (acli download), `registry.npmjs.org` (optional: only the Acquia Skills install; if it's blocked, skip the skills and carry on), `id.acquia.com` (sign-in), `cloud.acquia.com` (Cloud API). API-key sign-in (`--use-legacy-auth`) also needs `accounts.acquia.com`; device-code sign-in does not.
 
@@ -54,11 +54,14 @@ Hosts the flow needs: `github.com` and `release-assets.githubusercontent.com` (a
 
 Pick the command by what's stored, and check again before every sign-in (a failed sign-in leaves a stored key active; a successful one deactivates it):
 
+This prints `API key stored` when acli has an active API key. acli reads `cloud_api.conf` from one directory only: `$ACLI_HOME` if set; otherwise `~/.acquia` whenever it exists, even with no `cloud_api.conf` in it; otherwise `${XDG_CONFIG_HOME:-~/.config}/acquia`. So check only that directory: a key in a file acli doesn't read isn't stored as far as acli is concerned. It reads only the `acli_key` field; never print the file, which also holds the secret.
+
 ```bash
-# Prints "API key stored" when acli has an active API key. Reads only that field; never print the file.
-for f in "${ACLI_HOME:+$ACLI_HOME/cloud_api.conf}" ~/.acquia/cloud_api.conf "${XDG_CONFIG_HOME:-$HOME/.config}/acquia/cloud_api.conf"; do
-  [ -f "$f" ] || continue; grep -q '"acli_key": *"[^"]' "$f" && echo "API key stored"; break
-done
+d=${ACLI_HOME:-}
+if [ -z "$d" ]; then
+  if [ -e ~/.acquia ]; then d=~/.acquia; else d="${XDG_CONFIG_HOME:-$HOME/.config}/acquia"; fi
+fi
+grep -q '"acli_key": *"[^"]' "$d/cloud_api.conf" 2>/dev/null && echo "API key stored"
 ```
 
 - **"API key stored":**
