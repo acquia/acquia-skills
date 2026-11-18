@@ -1,6 +1,6 @@
 # pipelines-cli Skills
 
-Command-line skills for [Acquia Pipelines CLI](https://github.com/acquia/pipeline-cli).
+Command-line skills for [Acquia Pipelines CLI](https://docs.acquia.com/acquia-cloud-platform/using-cloud-platform-pipelines-client).
 
 ## Skills
 

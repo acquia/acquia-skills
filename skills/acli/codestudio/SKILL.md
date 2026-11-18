@@ -121,7 +121,7 @@ Ensure your Cloud API key/secret are valid:
 
 ```bash
 acli auth:login
-acli auth:me
+acli api:accounts:find
 ```
 
 ---

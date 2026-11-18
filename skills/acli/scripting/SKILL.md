@@ -121,8 +121,8 @@ jobs:
 
       - name: Install acli
         run: |
-          curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
-            -o /usr/local/bin/acli
+          curl -fsSL https://github.com/acquia/cli/releases/latest/download/native-acli-linux-x86_64.tar.gz \
+            | tar -xz -C /usr/local/bin acli
           chmod +x /usr/local/bin/acli
 
       - name: Deploy to production
@@ -149,8 +149,9 @@ deploy_production:
     ACLI_KEY: $ACQUIA_KEY
     ACLI_SECRET: $ACQUIA_SECRET
   before_script:
-    - curl -fsSL https://github.com/acquia/cli/releases/latest/download/acli \
-        -o /usr/local/bin/acli
+    - apt-get update && apt-get install -y curl ca-certificates
+    - curl -fsSL https://github.com/acquia/cli/releases/latest/download/native-acli-linux-x86_64.tar.gz
+        | tar -xz -C /usr/local/bin acli
     - chmod +x /usr/local/bin/acli
   script:
     - acli api:environments:code-switch $ACQUIA_PROD_ENV_ID $CI_COMMIT_BRANCH
