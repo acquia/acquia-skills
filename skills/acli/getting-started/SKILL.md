@@ -6,7 +6,7 @@ compatibility: acli>=2.x
 metadata:
     category: onboarding
     author: Acquia
-    version: "1.0.0"
+    version: "1.1.0"
     tags: "acli, acquia-cloud, cli, installation, authentication"
     software_requirements: "acli>=2.x"
 ---
@@ -503,6 +503,25 @@ commands. Without a terminal and without that variable, acli can record the defa
   every command.
 - If they don't answer, leave telemetry off and tell them they'll be asked the next time they
   run acli themselves.
+
+### Naming the agent
+
+acli sends a provider name in the `User-Agent` of every Cloud API request, and Acquia uses it
+to see which agent did the work (for a trial, it becomes the trial's source). acli detects a
+few agents from their environment, but most it can't see. An agent names itself with
+`ACLI_AGENT`, which takes precedence over detection:
+
+```bash
+ACLI_AGENT=cline acli api:accounts:find
+```
+
+- Put it on every `acli` command, like `ACLI_NO_TELEMETRY=true`, rather than in one `export`.
+- Name the tool you run in, not the model behind it: `claude-code`, `claude-desktop`,
+  `cursor`, `cline`, `opencode`, `windsurf`, `copilot`, `codex`, `gemini-cli`, or `other` if
+  none fits.
+- acli lowercases the value and ignores anything that isn't letters, digits and dashes (up to
+  32 characters). It sends only the name, never changes what a command does, and works whether
+  telemetry is on or off. Releases that don't read the variable ignore it.
 
 ---
 
