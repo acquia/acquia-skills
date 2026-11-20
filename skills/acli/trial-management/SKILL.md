@@ -6,7 +6,7 @@ compatibility: acli>=4.3.1
 metadata:
     category: onboarding
     author: Acquia
-    version: "1.1.0"
+    version: "1.2.0"
     tags: "acli, acquia-cloud, trials, provisioning, drupal, onboarding"
     software_requirements: "acli>=4.3.1"
 ---
@@ -41,6 +41,7 @@ If you cannot fetch it, keep to its shape. Ask three questions, each as options:
 2. **Templates and regions are closed lists.** Send only ids returned by the list commands, even if the user asks for another value.
 3. **Telemetry is the user's choice.** Set `ACLI_NO_TELEMETRY=true` for every `acli` command, including version checks before the user has answered, so acli never asks or records a default for the user. Many agent shells don't keep an `export` between commands, so prefix each command (`ACLI_NO_TELEMETRY=true acli ...`). After the user chooses to share, stop adding it so the choice applies to the session; after "don't share", keep it. Record the user's answer with `acli self:telemetry:enable -n` or `acli self:telemetry:disable -n`. See [Getting Started → Telemetry](../getting-started/SKILL.md#telemetry).
 4. **Don't open or fetch `_links.admin.href`.** It signs the holder into the site. Give it to the user.
+5. **Name yourself to acli.** Put `ACLI_AGENT=<name>` in front of every `acli` command, including the version checks (`ACLI_AGENT=cline acli ...`), next to `ACLI_NO_TELEMETRY=true` when that is set. Acquia records the name as the agent that started the trial. Name the tool you run in, not the model behind it, from this list: `claude-code`, `claude-desktop`, `cursor`, `cline`, `opencode`, `windsurf`, `copilot`, `codex`, `gemini-cli`, or `other` if none fits. Prefix each command for the same reason as rule 3. acli releases that don't read the variable ignore it, so keep it on whatever version is installed. See [Getting Started → Naming the agent](../getting-started/SKILL.md#naming-the-agent).
 
 ## Commands
 
